@@ -29,45 +29,57 @@ import io.netty.util.concurrent.Promise;
 public interface QuicChannel extends Channel {
 
     /**
-     * Creates a stream that is using this {@link QuicChannel} and notifies the {@link Future} once done.
-     * The {@link ChannelHandler} (if not {@code null}) is added to the {@link io.netty.channel.ChannelPipeline} of the
+     * Creates a stream that is using this {@link QuicChannel} and notifies the
+     * {@link Future} once done. The {@link ChannelHandler} (if not {@code null}) is
+     * added to the {@link io.netty.channel.ChannelPipeline} of the
      * {@link QuicStreamChannel} automatically.
      */
     Future<QuicStreamChannel> createStream(QuicStreamType type, ChannelHandler handler);
 
     /**
-     * Creates a stream that is using this {@link QuicChannel} and notifies the {@link Promise} once done.
-     * The {@link ChannelHandler} (if not {@code null}) is added to the {@link io.netty.channel.ChannelPipeline} of the
+     * Creates a stream that is using this {@link QuicChannel} and notifies the
+     * {@link Promise} once done. The {@link ChannelHandler} (if not {@code null})
+     * is added to the {@link io.netty.channel.ChannelPipeline} of the
      * {@link QuicStreamChannel} automatically.
      */
     Future<QuicStreamChannel> createStream(QuicStreamType type, ChannelHandler handler,
-                                           Promise<QuicStreamChannel> promise);
+            Promise<QuicStreamChannel> promise);
 
     /**
-     * Returns the negotiated ALPN protocol or {@code null} if non has been negotiated.
+     * Returns the negotiated ALPN protocol or {@code null} if non has been
+     * negotiated.
      */
     byte[] applicationProtocol();
 
     /**
      * Close the {@link QuicChannel}
      *
-     * @param applicationClose  {@code true} if an application close should be used,
-     *                          {@code false} if a normal close should be used.
-     * @param error             the application error number, or {@code 0} if no special error should be signaled.
-     * @param reason            the reason for the closure (which may be an empty {@link ByteBuf}.
-     * @return                  the future that is notified.
+     * @param applicationClose {@code true} if an application close should be used,
+     *                         {@code false} if a normal close should be used.
+     * @param error            the application error number, or {@code 0} if no
+     *                         special error should be signaled.
+     * @param reason           the reason for the closure (which may be an empty
+     *                         {@link ByteBuf}.
+     * @return the future that is notified.
      */
     ChannelFuture close(boolean applicationClose, int error, ByteBuf reason);
 
     /**
      * Close the {@link QuicChannel}
      *
-     * @param applicationClose  {@code true} if an application close should be used,
-     *                          {@code false} if a normal close should be used.
-     * @param error             the application error number, or {@code 0} if no special error should be signaled.
-     * @param reason            the reason for the closure (which may be an empty {@link ByteBuf}.
-     * @param promise           the {@link ChannelPromise} that will be notified.
-     * @return                  the future that is notified.
+     * @param applicationClose {@code true} if an application close should be used,
+     *                         {@code false} if a normal close should be used.
+     * @param error            the application error number, or {@code 0} if no
+     *                         special error should be signaled.
+     * @param reason           the reason for the closure (which may be an empty
+     *                         {@link ByteBuf}.
+     * @param promise          the {@link ChannelPromise} that will be notified.
+     * @return the future that is notified.
      */
     ChannelFuture close(boolean applicationClose, int error, ByteBuf reason, ChannelPromise promise);
+
+    /**
+     * Collects and returns statistics about the connection.
+     */
+    QuicConnectionStats stats();
 }
