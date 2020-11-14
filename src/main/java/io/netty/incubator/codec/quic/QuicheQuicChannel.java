@@ -44,10 +44,8 @@ import java.nio.channels.AlreadyConnectedException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ConnectionPendingException;
 import java.util.concurrent.TimeUnit;
-
 /**
- * {@link QuicChannel} implementation that uses
- * <a href="https://github.com/cloudflare/quiche">quiche</a>.
+ * {@link QuicChannel} implementation that uses <a href="https://github.com/cloudflare/quiche">quiche</a>.
  */
 final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     enum StreamRecvResult {
@@ -65,32 +63,15 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         OK
     }
 
-    private static final class CloseData implements ChannelFutureListener {
-        final boolean applicationClose;
-        final int err;
-        final ByteBuf reason;
-
-        CloseData(boolean applicationClose, int err, ByteBuf reason) {
-            this.applicationClose = applicationClose;
-            this.err = err;
-            this.reason = reason;
-        }
-
-        @Override
-        public void operationComplete(ChannelFuture future) {
-            reason.release();
-        }
-    }
-
     private static final ChannelMetadata METADATA = new ChannelMetadata(false);
     private final long[] readableStreams = new long[1024];
     private final long[] writableStreams = new long[1024];
-    // TODO: Consider using quiche_conn_stream_init_application_data(...) and
-    // quiche_conn_stream_application_data(...)
+    // TODO: Consider using quiche_conn_stream_init_application_data(...) and quiche_conn_stream_application_data(...)
     private final LongObjectMap<QuicheQuicStreamChannel> streams = new LongObjectHashMap<>();
     private final ChannelConfig config;
     private final boolean server;
     private final QuicStreamIdGenerator idGenerator;
+    private final InetSocketAddress remote;
 
     private final ChannelFutureListener timeoutScheduleListener = new ChannelFutureListener() {
         @Override
@@ -115,8 +96,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                     timeoutFuture = null;
                     forceClose();
                 } else {
-                    // We need to set writeEgressNeeded to true as we always need to call this
-                    // method when
+                    // We need to set writeEgressNeeded to true as we always need to call this method when
                     // a timeout was triggered.
                     // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send.
                     connectionSendNeeded = true;
@@ -141,19 +121,17 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private boolean connectionSendNeeded;
     private ByteBuf finBuffer;
     private ChannelPromise connectPromise;
-    private ByteBuffer connectId;
+    private byte[] connectId;
     private ByteBuffer key;
-    private CloseData closeData;
 
     private static final int CLOSED = 0;
     private static final int OPEN = 1;
     private static final int ACTIVE = 2;
     private volatile int state;
     private volatile String traceId;
-    private volatile InetSocketAddress remote;
 
     private QuicheQuicChannel(Channel parent, boolean server, ByteBuffer key, long connAddr, String traceId,
-            InetSocketAddress remote) {
+                      InetSocketAddress remote) {
         super(parent);
         config = new DefaultChannelConfig(this);
         this.server = server;
@@ -170,11 +148,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     static QuicheQuicChannel forClient(Channel parent) {
-        return new QuicheQuicChannel(parent, false, null, -1, null, (InetSocketAddress) parent.remoteAddress());
+        return new QuicheQuicChannel(parent, false, null,
+                -1, null, (InetSocketAddress) parent.remoteAddress());
     }
 
-    static QuicheQuicChannel forServer(Channel parent, ByteBuffer key, long connAddr, String traceId,
-            InetSocketAddress remote) {
+    static QuicheQuicChannel forServer(Channel parent, ByteBuffer key,
+                                       long connAddr, String traceId, InetSocketAddress remote) {
         return new QuicheQuicChannel(parent, true, key, connAddr, traceId, remote);
     }
 
@@ -182,7 +161,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         assert this.connAddr == -1;
         assert this.traceId == null;
         assert this.key == null;
-        ByteBuf idBuffer = alloc().directBuffer(connectId.remaining()).writeBytes(connectId.duplicate());
+        ByteBuf idBuffer = alloc().directBuffer(connectId.length).writeBytes(connectId);
         try {
             long connection = Quiche.quiche_connect(null, idBuffer.memoryAddress() + idBuffer.readerIndex(),
                     idBuffer.readableBytes(), configAddr);
@@ -199,7 +178,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             this.connAddr = connection;
 
             connectionSendNeeded = true;
-            key = connectId;
+            key = ByteBuffer.wrap(connectId);
         } finally {
             idBuffer.release();
         }
@@ -247,7 +226,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             return;
         }
         long nanos = Quiche.quiche_conn_timeout_as_nanos(connAddr);
-        timeoutFuture = eventLoop().schedule(timeout, nanos, TimeUnit.NANOSECONDS);
+        timeoutFuture = eventLoop().schedule(timeout,
+                nanos, TimeUnit.NANOSECONDS);
     }
 
     @Override
@@ -257,7 +237,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     @Override
     public Future<QuicStreamChannel> createStream(QuicStreamType type, ChannelHandler handler,
-            Promise<QuicStreamChannel> promise) {
+                                                  Promise<QuicStreamChannel> promise) {
         if (eventLoop().inEventLoop()) {
             ((QuicChannelUnsafe) unsafe()).connectStream(type, handler, promise);
         } else {
@@ -277,44 +257,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             return null;
         }
         return Quiche.quiche_conn_application_proto(connAddr);
-    }
-
-    @Override
-    public ChannelFuture close(boolean applicationClose, int error, ByteBuf reason) {
-        return close(applicationClose, error, reason, newPromise());
-    }
-
-    @Override
-    public ChannelFuture close(boolean applicationClose, int error, ByteBuf reason, ChannelPromise promise) {
-        if (eventLoop().inEventLoop()) {
-            close0(applicationClose, error, reason, promise);
-        } else {
-            eventLoop().execute(new Runnable() {
-                @Override
-                public void run() {
-                    close0(applicationClose, error, reason, promise);
-                }
-            });
-        }
-        return promise;
-    }
-
-    private void close0(boolean applicationClose, int error, ByteBuf reason, ChannelPromise promise) {
-        if (closeData == null) {
-            if (!reason.hasMemoryAddress()) {
-                // Copy to direct buffer as that's what we need.
-                ByteBuf copy = alloc().directBuffer(reason.readableBytes()).writeBytes(reason);
-                reason.release();
-                reason = copy;
-            }
-            closeData = new CloseData(applicationClose, error, reason);
-            promise.addListener(closeData);
-        } else {
-            // We already have a close scheduled that uses a close data. Lets release the
-            // buffer early.
-            reason.release();
-        }
-        close(promise);
     }
 
     @Override
@@ -360,22 +302,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     @Override
     protected void doClose() throws Exception {
         state = CLOSED;
-
-        final boolean app;
-        final int err;
-        final ByteBuf reason;
-        if (closeData == null) {
-            app = false;
-            err = 0;
-            reason = Unpooled.EMPTY_BUFFER;
-        } else {
-            app = closeData.applicationClose;
-            err = closeData.err;
-            reason = closeData.reason;
-            closeData = null;
-        }
-        Quiche.throwIfError(Quiche.quiche_conn_close(connectionAddressChecked(), app, err,
-                reason.memoryAddress() + reason.readerIndex(), reason.readableBytes()));
+        Quiche.throwIfError(Quiche.quiche_conn_close(connectionAddressChecked(), false, 0,
+                Unpooled.EMPTY_BUFFER.memoryAddress(), 0));
     }
 
     @Override
@@ -430,7 +358,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     private void closeStreams() {
-        for (QuicheQuicStreamChannel stream : streams.values()) {
+        for (QuicheQuicStreamChannel stream: streams.values()) {
             stream.unsafe().close(voidPromise());
         }
         streams.clear();
@@ -483,8 +411,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             res |= Quiche.quiche_conn_stream_shutdown(connectionAddress, streamId, Quiche.QUICHE_SHUTDOWN_WRITE, err);
         }
 
-        // As we called quiche_conn_stream_shutdown(...) we need to ensure we will call
-        // quiche_conn_send(...) either
+        // As we called quiche_conn_stream_shutdown(...) we need to ensure we will call quiche_conn_send(...) either
         // now or we will do so once we see the channelReadComplete event.
         //
         // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send
@@ -531,8 +458,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             return true;
         } finally {
             if (sendSomething) {
-                // As we called quiche_conn_stream_send(...) we need to ensure we will call
-                // quiche_conn_send(...) either
+                // As we called quiche_conn_stream_send(...) we need to ensure we will call quiche_conn_send(...) either
                 // now or we will do so once we see the channelReadComplete event.
                 //
                 // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send
@@ -546,8 +472,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             // Just write an empty buffer and set fin to true.
             Quiche.throwIfError(streamSend(streamId, Unpooled.EMPTY_BUFFER, true));
         } finally {
-            // As we called quiche_conn_stream_send(...) we need to ensure we will call
-            // quiche_conn_send(...) either
+            // As we called quiche_conn_stream_send(...) we need to ensure we will call quiche_conn_send(...) either
             // now or we will do so once we see the channelReadComplete event.
             //
             // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send
@@ -566,8 +491,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         }
         int writerIndex = buffer.writerIndex();
         long memoryAddress = buffer.memoryAddress();
-        int recvLen = Quiche.quiche_conn_stream_recv(connectionAddressChecked(), streamId, memoryAddress + writerIndex,
-                buffer.writableBytes(), finBuffer.memoryAddress());
+        int recvLen = Quiche.quiche_conn_stream_recv(connectionAddressChecked(), streamId,
+                memoryAddress + writerIndex, buffer.writableBytes(), finBuffer.memoryAddress());
         if (Quiche.throwIfError(recvLen)) {
             return StreamRecvResult.DONE;
         } else {
@@ -609,7 +534,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             return;
         }
 
-        if (Quiche.quiche_conn_is_established(connAddr) || Quiche.quiche_conn_is_in_early_data(connAddr)) {
+        if (Quiche.quiche_conn_is_established(connAddr) ||
+                Quiche.quiche_conn_is_in_early_data(connAddr)) {
             int writable = Quiche.quiche_conn_writable(connAddr, writableStreams);
 
             for (int i = 0; i < writable; i++) {
@@ -623,14 +549,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     /**
-     * Called once we receive a channelReadComplete event. This method will take
-     * care of calling {@link ChannelPipeline#fireChannelReadComplete()} if needed
-     * and also to handle pending flushes of writable
-     * {@link QuicheQuicStreamChannel}s.
+     * Called once we receive a channelReadComplete event. This method will take care of calling
+     * {@link ChannelPipeline#fireChannelReadComplete()} if needed and also to handle pending flushes of
+     * writable {@link QuicheQuicStreamChannel}s.
      *
-     * If this methods returns {@code true} we need to call {@link Channel#flush()}
-     * on the {@link #parent()} {@link Channel} once we notified all
-     * {@link QuicheQuicChannel} that are handled by the same parent
+     * If this methods returns {@code true} we need to call {@link Channel#flush()} on the {@link #parent()}
+     * {@link Channel} once we notified all {@link QuicheQuicChannel} that are handled by the same parent
      * {@link Channel}.
      */
     boolean channelReadComplete() {
@@ -662,8 +586,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     /**
-     * Write datagrams if needed and return {@code true} if something was written
-     * and we need to call {@link Channel#flush()} at some point.
+     * Write datagrams if needed and return {@code true} if something was written and we need to call
+     * {@link Channel#flush()} at some point.
      */
     ChannelFuture connectionSend() {
         if (isConnDestroyed() || !connectionSendNeeded) {
@@ -672,8 +596,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         connectionSendNeeded = false;
         ChannelFuture lastFuture = null;
 
-        // Use the datagram size that was advertised by the remote peer, or if none was
-        // fallback to some safe default.
+        // Use the datagram size that was advertised by the remote peer, or if none was fallback to some safe default.
         int len = Quiche.quiche_conn_dgram_max_writable_len(connAddr);
         if (len <= 0) {
             len = Quic.MAX_DATAGRAM_SIZE;
@@ -708,11 +631,11 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private final class QuicChannelUnsafe extends AbstractChannel.AbstractUnsafe {
 
-        void connectStream(QuicStreamType type, ChannelHandler handler, Promise<QuicStreamChannel> promise) {
+        void connectStream(QuicStreamType type, ChannelHandler handler,
+                           Promise<QuicStreamChannel> promise) {
             long streamId = idGenerator.nextStreamId(type == QuicStreamType.BIDIRECTIONAL);
             try {
-                // TODO: We could make this a bit more efficient by waiting until we have some
-                // data to send.
+                // TODO: We could make this a bit more efficient by waiting until we have some data to send.
                 streamSend(streamId, Unpooled.EMPTY_BUFFER, false);
             } catch (Exception e) {
                 promise.setFailure(e);
@@ -748,19 +671,16 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 return;
             }
 
-            if (remote instanceof QuicConnectionAddress) {
+            if (remote instanceof QuicConnectionIdAddress) {
                 if (key != null) {
                     // If a key is assigned we know this channel was already connected.
                     channelPromise.setFailure(new AlreadyConnectedException());
                     return;
                 }
 
-                QuicConnectionAddress address = (QuicConnectionAddress) remote;
                 connectPromise = channelPromise;
-                connectId = address.connId.duplicate();
-                if (address.remote != null) {
-                    QuicheQuicChannel.this.remote = address.remote;
-                }
+                connectId = ((QuicConnectionIdAddress) remote).connId;
+
                 parent().connect(new QuicheQuicChannelAddress(QuicheQuicChannel.this));
                 return;
             }
@@ -774,8 +694,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             }
 
             ByteBuf tmpBuffer = null;
-            // We need to make a copy if the buffer is read only as recv(...) may modify the
-            // input buffer as well.
+            // We need to make a copy if the buffer is read only as recv(...) may modify the input buffer as well.
             // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.recv
             if (buffer.isReadOnly() || !buffer.hasMemoryAddress()) {
                 buffer = tmpBuffer = alloc().directBuffer(buffer.readableBytes()).writeBytes(buffer);
@@ -788,9 +707,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             // see https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send
             connectionSendNeeded = true;
             try {
-                do {
-                    // Call quiche_conn_recv(...) until we consumed all bytes or we did receive some
-                    // error.
+                do  {
+                    // Call quiche_conn_recv(...) until we consumed all bytes or we did receive some error.
                     int res = Quiche.quiche_conn_recv(connAddr, memoryAddress, bufferReadable);
                     boolean done;
                     try {
@@ -812,8 +730,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                             long streamId = readableStreams[i];
                             QuicheQuicStreamChannel streamChannel = streams.get(streamId);
                             if (streamChannel == null) {
-                                // We create a new channel and fire it through the pipeline which means we also
-                                // need
+                                // We create a new channel and fire it through the pipeline which means we also need
                                 // to ensure we call fireChannelReadCompletePending.
                                 fireChannelReadCompletePending = true;
                                 streamChannel = addNewStreamChannel(streamId);
@@ -856,7 +773,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         }
 
         private QuicheQuicStreamChannel addNewStreamChannel(long streamId) {
-            QuicheQuicStreamChannel streamChannel = new QuicheQuicStreamChannel(QuicheQuicChannel.this, streamId);
+            QuicheQuicStreamChannel streamChannel = new QuicheQuicStreamChannel(
+                    QuicheQuicChannel.this, streamId);
             QuicheQuicStreamChannel old = streams.put(streamId, streamChannel);
             assert old == null;
             return streamChannel;
@@ -887,8 +805,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     /**
-     * Just a container to pass the {@link QuicheQuicChannel} to
-     * {@link QuicheQuicClientCodec}.
+     * Just a container to pass the {@link QuicheQuicChannel} to {@link QuicClientCodec}.
      */
     private static final class QuicheQuicChannelAddress extends SocketAddress {
 
