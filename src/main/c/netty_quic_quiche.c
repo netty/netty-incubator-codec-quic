@@ -238,8 +238,7 @@ static jboolean netty_quic_quiche_conn_is_closed(JNIEnv* env, jclass clazz, jlon
 }
 
 static jlongArray netty_quic_quiche_conn_stats(JNIEnv* env, jclass clazz, jlong conn) {
-    quiche_stats stats;
-    memset(&stats, 0, sizeof(stats));
+    quiche_stats stats = {0,0,0,0,0,0};
     quiche_conn_stats((quiche_conn *) conn, &stats);
 
     jlongArray statsArray = (*env)->NewLongArray(env, 6);
