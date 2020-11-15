@@ -15,36 +15,71 @@
  */
 package io.netty.incubator.codec.quic;
 
+import io.netty.util.internal.StringUtil;
+
 public class QuicheQuicConnectionStats implements QuicConnectionStats {
+
+    private final long recv;
+    private final long sent;
+    private final long lost;
+    private final long rttNanos;
+    private final long congestionWindow;
+    private final long deliveryRate;
+
+    protected QuicheQuicConnectionStats(long recv, long sent, long lost, long rttNanos, long cwnd, long deliveryRate) {
+        this.recv = recv;
+        this.sent = sent;
+        this.lost = lost;
+        this.rttNanos = rttNanos;
+        this.congestionWindow = cwnd;
+        this.deliveryRate = deliveryRate;
+    }
 
     @Override
     public long recv() {
-        return 0;
+        return this.recv;
     }
 
     @Override
     public long sent() {
-        return 0;
+        return this.sent;
     }
 
     @Override
     public long lost() {
-        return 0;
+        return this.lost;
     }
 
     @Override
-    public long rttMillis() {
-        return 0;
+    public long rttNanos() {
+        return this.rttNanos;
     }
 
     @Override
     public long congestionWindow() {
-        return 0;
+        return this.congestionWindow;
     }
 
     @Override
     public long deliveryRate() {
-        return 0;
+        return this.deliveryRate;
+    }
+
+    /**
+     * Returns the {@link String} representation of stats.
+     */
+    @Override
+    public String toString() {
+        return new StringBuilder(StringUtil.simpleClassName(this))
+            .append("[")
+            .append("recv=").append(this.recv)
+            .append(", sent=").append(this.sent)
+            .append(", lost=").append(this.lost)
+            .append(", rttNanos=").append(this.rttNanos)
+            .append(", congestionWindow=").append(this.congestionWindow)
+            .append(", deliveryRate=").append(this.deliveryRate)
+            .append("]")
+            .toString();
     }
 
 }

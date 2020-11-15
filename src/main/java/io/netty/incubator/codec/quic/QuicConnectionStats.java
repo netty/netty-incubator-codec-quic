@@ -35,9 +35,9 @@ public interface QuicConnectionStats {
     long lost();
 
     /**
-     * @return The estimated round-trip time of the connection in milliseconds.
+     * @return The estimated round-trip time of the connection in nanoseconds.
      */
-    long rttMillis();
+    long rttNanos();
 
     /**
      * @return The size of the connection's congestion window in bytes.

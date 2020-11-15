@@ -72,7 +72,12 @@ public interface QuicChannel extends Channel {
     ChannelFuture close(boolean applicationClose, int error, ByteBuf reason, ChannelPromise promise);
 
     /**
-     * Collects and returns statistics about the connection.
+     * Collects statistics about the connection and notifies the {@link Future} once done.
      */
-    QuicConnectionStats stats();
+    Future<QuicConnectionStats> collectStats();
+
+    /**
+     * Collects statistics about the connection and notifies the {@link Promise} once done.
+     */
+    Future<QuicConnectionStats> collectStats(Promise<QuicConnectionStats> promise);
 }
