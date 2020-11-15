@@ -920,7 +920,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
         final long[] stats = Quiche.quiche_conn_stats(connAddr);
         if (stats == null) {
-            promise.setFailure(new RuntimeException("native quiche_conn_stats(...) failed"));
+            promise.setFailure(new IllegalStateException("native quiche_conn_stats(...) failed"));
             return null;
         }
 
