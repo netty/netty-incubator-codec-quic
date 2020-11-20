@@ -19,12 +19,10 @@ import io.netty.util.collection.IntObjectHashMap;
 import io.netty.util.collection.IntObjectMap;
 
 /**
- * All QUIC error codes identified by Quiche. See <a href=
- * "https://github.com/cloudflare/quiche/blob/0.6.0/src/lib.rs#L335-L380">Error</a>
+ * All QUIC error codes identified by Quiche.
+ * See <a href="https://github.com/cloudflare/quiche/blob/0.6.0/src/lib.rs#L335-L380">Error</a>
  */
-public enum QuicheError {
-    DONE(Quiche.QUICHE_ERR_DONE, "QUICHE_ERR_DONE"),
-    BUFFER_TOO_SHORT(Quiche.QUICHE_ERR_BUFFER_TOO_SHORT, "QUICHE_ERR_BUFFER_TOO_SHORT"),
+enum QuicError {
     UNKNOWN_VERSION(Quiche.QUICHE_ERR_UNKNOWN_VERSION, "QUICHE_ERR_UNKNOWN_VERSION"),
     INVALID_FRAME(Quiche.QUICHE_ERR_INVALID_FRAME, "QUICHE_ERR_INVALID_FRAME"),
     INVALID_PACKET(Quiche.QUICHE_ERR_INVALID_PACKET, "QUICHE_ERR_INVALID_PACKET"),
@@ -38,10 +36,10 @@ public enum QuicheError {
     FINAL_SIZE(Quiche.QUICHE_ERR_FINAL_SIZE, "QUICHE_ERR_FINAL_SIZE"),
     CONGESTION_CONTROL(Quiche.QUICHE_ERR_CONGESTION_CONTROL, "QUICHE_ERR_CONGESTION_CONTROL");
 
-    protected static final IntObjectMap<QuicheError> ERROR_MAP = new IntObjectHashMap<>();
+    private static final IntObjectMap<QuicError> ERROR_MAP = new IntObjectHashMap<>();
 
     static {
-        for (QuicheError errorCode : QuicheError.values()) {
+        for (QuicError errorCode : QuicError.values()) {
             ERROR_MAP.put(errorCode.code(), errorCode);
         }
     }
@@ -49,28 +47,28 @@ public enum QuicheError {
     private final int code;
     private final String message;
 
-    QuicheError(int code, String message) {
+    QuicError(int code, String message) {
         this.code = code;
         this.message = message;
     }
 
-    public final int code() {
+    final int code() {
         return code;
     }
 
-    public final String message() {
+    final String message() {
         return message;
     }
 
     @Override
     public final String toString() {
-        return String.format("QuicheError{code=%d, message=%s}", code, message);
+        return String.format("QuicError{code=%d, message=%s}", code, message);
     }
 
-    public static QuicheError valueOf(int code) {
-        final QuicheError errorCode = ERROR_MAP.get(code);
+    static QuicError valueOf(int code) {
+        final QuicError errorCode = ERROR_MAP.get(code);
         if (errorCode == null) {
-            throw new IllegalArgumentException("unknown " + QuicheError.class.getSimpleName() + " code: " + code);
+            throw new IllegalArgumentException("unknown " + QuicError.class.getSimpleName() + " code: " + code);
         }
         return errorCode;
     }

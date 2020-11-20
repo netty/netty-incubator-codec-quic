@@ -511,11 +511,11 @@ final class Quiche {
     private static native void quiche_enable_debug_logging(QuicheLogger logger);
 
     static String errorAsString(int err) {
-        return QuicheError.valueOf(err).message();
+        return QuicError.valueOf(err).message();
     }
 
     static Exception newException(int err) {
-        final QuicheError error = QuicheError.valueOf(err);
+        final QuicError error = QuicError.valueOf(err);
         if (err == QUICHE_ERR_TLS_FAIL) {
             return new SSLHandshakeException(error.message());
         }

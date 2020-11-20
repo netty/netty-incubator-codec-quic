@@ -19,14 +19,14 @@ import java.io.IOException;
 
 public final class QuicheException extends IOException {
 
-    private final QuicheError errorCode;
+    private final QuicError errorCode;
 
-    QuicheException(QuicheError errorCode) {
+    QuicheException(QuicError errorCode) {
         super(errorCode.message());
         this.errorCode = errorCode;
     }
 
-    public QuicheError errorCode() {
+    public QuicError errorCode() {
         return errorCode;
     }
 
