@@ -22,7 +22,7 @@ import io.netty.util.collection.IntObjectMap;
  * All QUIC error codes identified by Quiche.
  * See <a href="https://github.com/cloudflare/quiche/blob/0.6.0/src/lib.rs#L335-L380">Error</a>
  */
-enum QuicError {
+public enum QuicError {
     UNKNOWN_VERSION(Quiche.QUICHE_ERR_UNKNOWN_VERSION, "QUICHE_ERR_UNKNOWN_VERSION"),
     INVALID_FRAME(Quiche.QUICHE_ERR_INVALID_FRAME, "QUICHE_ERR_INVALID_FRAME"),
     INVALID_PACKET(Quiche.QUICHE_ERR_INVALID_PACKET, "QUICHE_ERR_INVALID_PACKET"),
