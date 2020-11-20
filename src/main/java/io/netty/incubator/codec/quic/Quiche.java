@@ -516,13 +516,16 @@ final class Quiche {
 
     static Exception newException(int err) {
         final QuicError error = QuicError.valueOf(err);
+        final QuicheException reason = new QuicheException(error);
         if (err == QUICHE_ERR_TLS_FAIL) {
-            return new SSLHandshakeException(error.message());
+            final SSLHandshakeException sslExc = new SSLHandshakeException(error.message());
+            sslExc.initCause(reason);
+            return sslExc;
         }
         if (err == QUICHE_ERR_CRYPTO_FAIL) {
-            return new SSLException(error.message());
+            return new SSLException(error.message(), reason);
         }
-        return new QuicheException(error);
+        return reason;
     }
 
     static boolean throwIfError(int res) throws Exception {
