@@ -179,13 +179,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         return new QuicheQuicChannel(parent, true, key, connAddr, traceId, remote);
     }
 
-    private void connect(long configAddr) throws Exception {
+    private void connect(long configAddr, String serverName) throws Exception {
         assert this.connAddr == -1;
         assert this.traceId == null;
         assert this.key == null;
         ByteBuf idBuffer = alloc().directBuffer(connectId.remaining()).writeBytes(connectId.duplicate());
         try {
-            long connection = Quiche.quiche_connect(null, idBuffer.memoryAddress() + idBuffer.readerIndex(),
+            long connection = Quiche.quiche_connect(serverName, idBuffer.memoryAddress() + idBuffer.readerIndex(),
                     idBuffer.readableBytes(), configAddr);
             if (connection == -1) {
                 ConnectException connectException = new ConnectException();
@@ -942,11 +942,11 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     // TODO: Come up with something better.
-    static QuicheQuicChannel handleConnect(SocketAddress address, long config) throws Exception {
+    static QuicheQuicChannel handleConnect(SocketAddress address, long config, String serverName) throws Exception {
         if (address instanceof QuicheQuicChannel.QuicheQuicChannelAddress) {
             QuicheQuicChannel.QuicheQuicChannelAddress addr = (QuicheQuicChannel.QuicheQuicChannelAddress) address;
             QuicheQuicChannel channel = addr.channel;
-            channel.connect(config);
+            channel.connect(config, serverName);
             return channel;
         }
         return null;

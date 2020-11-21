@@ -41,6 +41,7 @@ public abstract class QuicBuilder<B extends QuicBuilder<B>> {
     private Boolean disableActiveMigration;
     private Boolean enableHystart;
     private QuicCongestionControlAlgorithm congestionControlAlgorithm;
+    private String serverName;
 
     QuicBuilder() { }
 
@@ -223,6 +224,19 @@ public abstract class QuicBuilder<B extends QuicBuilder<B>> {
     public final B enableHystart(boolean value) {
         this.enableHystart = value;
         return self();
+    }
+
+    /**
+     * See server_name argument for
+     * <a href="https://docs.rs/quiche/0.6.0/quiche/fn.connect.html">quiche::connect</a>
+     */
+    public final B serverName(String serverName) {
+        this.serverName = serverName;
+        return self();
+    }
+
+    final String serverName() {
+        return serverName;
     }
 
     /**
