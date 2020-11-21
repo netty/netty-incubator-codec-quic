@@ -29,7 +29,6 @@ import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.ConnectTimeoutException;
-import io.netty.channel.DefaultChannelConfig;
 import io.netty.channel.EventLoop;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.collection.LongObjectHashMap;
@@ -158,7 +157,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private QuicheQuicChannel(Channel parent, boolean server, ByteBuffer key, long connAddr, String traceId,
                       InetSocketAddress remote) {
         super(parent);
-        config = new DefaultChannelConfig(this);
+        config = new DefaultQuicChannelConfig(this);
         this.server = server;
         this.idGenerator = new QuicStreamIdGenerator(server);
         this.key = key;
@@ -201,6 +200,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
             connectionSendNeeded = true;
             key = connectId;
+
+            final String keylogPath = config().getOption(QUIC_KEYLOG_PATH);
+            if (keylogPath != null) {
+                // TODO: handle "false" result, which means something when wrong (???)
+                Quiche.quiche_conn_set_keylog_path(connection, keylogPath);
+            }
         } finally {
             idBuffer.release();
         }

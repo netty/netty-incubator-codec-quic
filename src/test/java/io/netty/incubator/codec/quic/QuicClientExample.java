@@ -53,6 +53,7 @@ public final class QuicClientExample {
             Bootstrap quicClientBootstrap = new QuicClientBuilder()
                     .certificateChain("./src/test/resources/cert.crt")
                     .privateKey("./src/test/resources/cert.key")
+                    .logKeys()
                     .applicationProtocols(proto)
                     .maxIdleTimeout(5000)
                     .maxUdpPayloadSize(Quic.MAX_DATAGRAM_SIZE)
@@ -65,6 +66,7 @@ public final class QuicClientExample {
                     .enableEarlyData().buildBootstrap(channel);
 
             QuicChannel quicChannel = (QuicChannel) quicClientBootstrap
+                            .option(QuicChannel.QUIC_KEYLOG_PATH, "./srt/test/resources/keylog")
                             .handler(new QuicChannelInitializer(new ChannelInboundHandlerAdapter() {
                                 @Override
                                 public void channelActive(ChannelHandlerContext ctx) {

@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
@@ -27,6 +28,8 @@ import io.netty.util.concurrent.Promise;
  * A QUIC {@link Channel}.
  */
 public interface QuicChannel extends Channel {
+
+    ChannelOption<String> QUIC_KEYLOG_PATH = ChannelOption.valueOf("QUIC_KEYLOG_PATH");
 
     /**
      * Creates a stream that is using this {@link QuicChannel} and notifies the {@link Future} once done.

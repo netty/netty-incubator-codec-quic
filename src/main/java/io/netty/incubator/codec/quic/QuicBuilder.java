@@ -26,6 +26,7 @@ public abstract class QuicBuilder<B extends QuicBuilder<B>> {
     private String keyPath;
     private Boolean verifyPeer;
     private Boolean grease;
+    private Boolean logKeys;
     private boolean earlyData;
     private byte[] protos;
     private Long maxIdleTimeout;
@@ -88,6 +89,14 @@ public abstract class QuicBuilder<B extends QuicBuilder<B>> {
      */
     public final B grease(boolean enable) {
         grease = enable;
+        return self();
+    }
+
+    /**
+     * Enables logging of secrets.
+     */
+    public final B logKeys() {
+        logKeys = true;
         return self();
     }
 
@@ -256,6 +265,9 @@ public abstract class QuicBuilder<B extends QuicBuilder<B>> {
             }
             if (grease != null) {
                 Quiche.quiche_config_grease(config, grease);
+            }
+            if (logKeys) {
+                Quiche.quiche_config_log_keys(config);
             }
             if (earlyData) {
                 Quiche.quiche_config_enable_early_data(config);

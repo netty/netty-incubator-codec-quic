@@ -172,6 +172,22 @@ static void netty_quic_quiche_conn_free(JNIEnv* env, jclass clazz, jlong conn) {
     quiche_conn_free((quiche_conn *) conn);
 }
 
+static jboolean netty_quic_quiche_conn_set_keylog_path(JNIEnv* env, jclass clazz, jlong conn, jstring keylog_path) {
+    if (keylog_path == NULL) {
+        return JNI_FALSE;
+    }
+
+    const char *path = NULL;
+    path = (*env)->GetStringUTFChars(env, keylog_path, 0);
+    if (path == NULL) {
+        return JNI_FALSE;
+    }
+
+    bool res = quiche_conn_set_keylog_path((quiche_conn *) conn, path);
+    (*env)->ReleaseStringUTFChars(env, keylog_path, path);
+    return res == true ? JNI_TRUE : JNI_FALSE;
+}
+
 static jlong netty_quic_quiche_connect(JNIEnv* env, jclass clazz, jstring server_name, jlong scid, jint scid_len, jlong config) {
     const char *name = NULL;
     if (server_name != NULL) {
@@ -353,6 +369,10 @@ static void netty_quic_quiche_config_grease(JNIEnv* env, jclass clazz, jlong con
     quiche_config_grease((quiche_config*) config, value == JNI_TRUE ? true : false);
 }
 
+static void netty_quic_quiche_config_log_keys(JNIEnv* env, jclass clazz, jlong config) {
+    quiche_config_log_keys((quiche_config*) config);
+}
+
 static void netty_quic_quiche_config_enable_early_data(JNIEnv* env, jclass clazz, jlong config) {
     quiche_config_enable_early_data((quiche_config*) config);
 }
@@ -488,6 +508,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "quiche_conn_recv", "(JJI)I", (void *) netty_quic_quiche_conn_recv },
   { "quiche_conn_send", "(JJI)I", (void *) netty_quic_quiche_conn_send },
   { "quiche_conn_free", "(J)V", (void *) netty_quic_quiche_conn_free },
+  { "quiche_conn_set_keylog_path", "(JLjava/lang/String;)Z", (void *) netty_quic_quiche_conn_set_keylog_path },
   { "quiche_connect", "(Ljava/lang/String;JIJ)J", (void *) netty_quic_quiche_connect },
   { "quiche_conn_stream_recv", "(JJJIJ)I", (void *) netty_quic_quiche_conn_stream_recv },
   { "quiche_conn_stream_send", "(JJJIZ)I", (void *) netty_quic_quiche_conn_stream_send },
@@ -513,6 +534,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "quiche_config_load_priv_key_from_pem_file", "(JLjava/lang/String;)I", (void *) netty_quic_quiche_config_load_priv_key_from_pem_file },
   { "quiche_config_verify_peer", "(JZ)V", (void *) netty_quic_quiche_config_verify_peer },
   { "quiche_config_grease", "(JZ)V", (void *) netty_quic_quiche_config_grease },
+  { "quiche_config_log_keys", "(J)V", (void *) netty_quic_quiche_config_log_keys },
   { "quiche_config_enable_early_data", "(J)V", (void *) netty_quic_quiche_config_enable_early_data },
   { "quiche_config_set_application_protos", "(J[B)I", (void *) netty_quic_quiche_config_set_application_protos },
   { "quiche_config_set_max_idle_timeout", "(JJ)V", (void *) netty_quic_quiche_config_set_max_idle_timeout },

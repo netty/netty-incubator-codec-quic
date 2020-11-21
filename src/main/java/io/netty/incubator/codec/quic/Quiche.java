@@ -233,6 +233,12 @@ final class Quiche {
     static native void quiche_conn_free(long connAddr);
 
     /**
+     * See
+     * <a href="https://github.com/cloudflare/quiche/blob/0.6.0/include/quiche.h#L235">quiche_conn_set_keylog_path</a>.
+     */
+    static native boolean quiche_conn_set_keylog_path(long connAddr, String path);
+
+    /**
      * See <a href="https://github.com/cloudflare/quiche/blob/0.6.0/include/quiche.h#L211">quiche_connect</a>.
      */
     static native long quiche_connect(String server_name, long scidAddr, int scidLen, long configAddr);
@@ -391,6 +397,13 @@ final class Quiche {
      *     quiche_config_grease</a>.
      */
     static native void quiche_config_grease(long configAddr, boolean value);
+
+    /**
+     * See
+     * <a href="https://github.com/cloudflare/quiche/blob/0.6.0/include/quiche.h#132">
+     *     quiche_config_log_keys</a>.
+     */
+    static native void quiche_config_log_keys(long configAddr);
 
     /**
      * See
