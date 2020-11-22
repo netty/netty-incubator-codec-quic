@@ -31,7 +31,6 @@ import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.ConnectTimeoutException;
-import io.netty.channel.DefaultChannelConfig;
 import io.netty.channel.DefaultChannelPipeline;
 import io.netty.channel.EventLoop;
 import io.netty.channel.socket.DatagramPacket;
@@ -171,7 +170,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                               Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
                               Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray) {
         super(parent);
-        config = new DefaultChannelConfig(this);
+        config = new DefaultQuicChannelConfig(this);
         this.server = server;
         this.idGenerator = new QuicStreamIdGenerator(server);
         this.key = key;
@@ -207,8 +206,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         assert this.traceId == null;
         assert this.key == null;
         ByteBuf idBuffer = alloc().directBuffer(connectId.remaining()).writeBytes(connectId.duplicate());
+        final String serverName = config().getOption(QuicChannelConfig.QUIC_PEER_CERT_SERVER_NAME);
         try {
-            long connection = Quiche.quiche_connect(null, idBuffer.memoryAddress() + idBuffer.readerIndex(),
+            long connection = Quiche.quiche_connect(serverName, idBuffer.memoryAddress() + idBuffer.readerIndex(),
                     idBuffer.readableBytes(), configAddr);
             if (connection == -1) {
                 ConnectException connectException = new ConnectException();
