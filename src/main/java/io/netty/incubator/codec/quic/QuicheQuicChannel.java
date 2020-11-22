@@ -206,7 +206,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         assert this.traceId == null;
         assert this.key == null;
         ByteBuf idBuffer = alloc().directBuffer(connectId.remaining()).writeBytes(connectId.duplicate());
-        final String serverName = config().getOption(QuicChannelConfig.QUIC_PEER_CERT_SERVER_NAME);
+        final String serverName = config().getOption(QuicChannelOption.PEER_CERT_SERVER_NAME);
         try {
             long connection = Quiche.quiche_connect(serverName, idBuffer.memoryAddress() + idBuffer.readerIndex(),
                     idBuffer.readableBytes(), configAddr);

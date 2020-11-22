@@ -15,21 +15,61 @@
  */
 package io.netty.incubator.codec.quic;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelConfig;
-import io.netty.channel.ChannelOption;
+import io.netty.channel.MessageSizeEstimator;
+import io.netty.channel.RecvByteBufAllocator;
+import io.netty.channel.WriteBufferWaterMark;
 
 /**
  * A QUIC {@link ChannelConfig}.
  */
 public interface QuicChannelConfig extends ChannelConfig {
 
-    /**
-     * Optional parameter to verify peer's certificate.
-     * See <a href="https://docs.rs/quiche/0.6.0/quiche/fn.connect.html">server_name</a>.
-     */
-    ChannelOption<String> QUIC_PEER_CERT_SERVER_NAME = ChannelOption.valueOf("QUIC_PEER_CERT_SERVER_NAME");
+    @Override
+    @Deprecated
+    QuicChannelConfig setMaxMessagesPerRead(int maxMessagesPerRead);
 
+    @Override
+    QuicChannelConfig setConnectTimeoutMillis(int connectTimeoutMillis);
+
+    @Override
+    QuicChannelConfig setWriteSpinCount(int writeSpinCount);
+
+    @Override
+    QuicChannelConfig setAllocator(ByteBufAllocator allocator);
+
+    @Override
+    QuicChannelConfig setRecvByteBufAllocator(RecvByteBufAllocator allocator);
+
+    @Override
+    QuicChannelConfig setAutoRead(boolean autoRead);
+
+    @Override
+    QuicChannelConfig setAutoClose(boolean autoClose);
+
+    @Override
+    QuicChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark);
+
+    @Override
+    QuicChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark);
+
+    @Override
+    QuicChannelConfig setWriteBufferWaterMark(WriteBufferWaterMark writeBufferWaterMark);
+
+    @Override
+    QuicChannelConfig setMessageSizeEstimator(MessageSizeEstimator estimator);
+
+    /**
+     * Return the server name parameter used to verify peer's certificate.
+     */
     String getPeerCertServerName();
 
-    ChannelConfig setPeerCertServerName(String peerCertServerName);
+    /**
+     * Set set server name for peer's certificate verification.
+     *
+     * <strong>Be aware this config setting can only be adjusted before the
+     * connection is established.</strong>
+     */
+    QuicChannelConfig setPeerCertServerName(String peerCertServerName);
 }
