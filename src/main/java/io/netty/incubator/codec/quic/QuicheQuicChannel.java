@@ -20,7 +20,6 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -97,7 +96,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     // TODO: Consider using quiche_conn_stream_init_application_data(...) and quiche_conn_stream_application_data(...)
     private final LongObjectMap<QuicheQuicStreamChannel> streams = new LongObjectHashMap<>();
     private final Queue<Long> flushPendingQueue = new ArrayDeque<>();
-    private final ChannelConfig config;
+    private final QuicChannelConfig config;
     private final boolean server;
     private final QuicStreamIdGenerator idGenerator;
     private final ChannelHandler streamHandler;
@@ -436,7 +435,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     @Override
-    public ChannelConfig config() {
+    public QuicChannelConfig config() {
         return config;
     }
 

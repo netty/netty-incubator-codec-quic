@@ -28,7 +28,7 @@ import io.netty.channel.WriteBufferWaterMark;
 /**
  * A QUIC {@link ChannelConfig}.
  */
-public class DefaultQuicChannelConfig extends DefaultChannelConfig implements QuicChannelConfig {
+final class DefaultQuicChannelConfig extends DefaultChannelConfig implements QuicChannelConfig {
 
     /**
      * Optional parameter to verify peer's certificate.
