@@ -43,9 +43,7 @@ public final class QuicStreamChannelBootstrap {
     private QuicStreamType type = QuicStreamType.BIDIRECTIONAL;
 
     /**
-     * Creates a new instance which uses the given {@link Channel} to bootstrap the {@link QuicChannel}.
-     * This {@link io.netty.channel.ChannelPipeline} of the {@link Channel} needs to have the quic codec in the
-     * pipeline.
+     * Creates a new instance which uses the given {@link QuicChannel} to bootstrap {@link QuicStreamChannel}s.
      */
     QuicStreamChannelBootstrap(QuicChannel parent) {
         this.parent = ObjectUtil.checkNotNull(parent, "parent");
