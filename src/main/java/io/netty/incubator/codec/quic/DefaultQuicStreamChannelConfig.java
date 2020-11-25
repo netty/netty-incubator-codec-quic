@@ -33,7 +33,7 @@ final class DefaultQuicStreamChannelConfig extends DefaultChannelConfig implemen
 
     @Override
     public Map<ChannelOption<?>, Object> getOptions() {
-        if (isAllowHalfClosure()) {
+        if (isHalfClosureSupported()) {
             return getOptions(super.getOptions(), ChannelOption.ALLOW_HALF_CLOSURE);
         }
         return super.getOptions();
