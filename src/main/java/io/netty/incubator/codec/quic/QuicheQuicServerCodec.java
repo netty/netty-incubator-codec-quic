@@ -180,6 +180,12 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
         Quic.setupChannel(channel, optionsArray, attrsArray, handler, LOGGER);
         putChannel(channel);
         ctx.channel().eventLoop().register(channel);
+
+        final String keylogPath = channel.config().getKeylogPath();
+        if (keylogPath != null) {
+            Quiche.quiche_conn_set_keylog_path(conn, keylogPath);
+        }
+
         return channel;
     }
 }

@@ -29,6 +29,8 @@ public final class QuicChannelOption<T> extends ChannelOption<T> {
     public static final ChannelOption<String> PEER_CERT_SERVER_NAME =
         valueOf(QuicChannelOption.class, "PEER_CERT_SERVER_NAME");
 
+    public static final ChannelOption<String> KEYLOG_PATH = valueOf(QuicChannelOption.class, "KEYLOG_PATH");
+
     @SuppressWarnings({ "deprecation" })
     private QuicChannelOption() {
         super(null);

@@ -181,6 +181,11 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
             connectionSendNeeded = true;
             key = connectId;
+
+            final String keylogPath = config().getKeylogPath();
+            if (keylogPath != null) {
+                Quiche.quiche_conn_set_keylog_path(connection, keylogPath);
+            }
         } finally {
             idBuffer.release();
         }

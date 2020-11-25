@@ -20,7 +20,8 @@ final class QuicheConfig {
     private final String keyPath;
     private final Boolean verifyPeer;
     private final Boolean grease;
-    private final  boolean earlyData;
+    private final boolean logKeys;
+    private final boolean earlyData;
     private final byte[] protos;
     private final Long maxIdleTimeout;
     private final Long maxUdpPayloadSize;
@@ -36,9 +37,9 @@ final class QuicheConfig {
     private final Boolean enableHystart;
     private final QuicCongestionControlAlgorithm congestionControlAlgorithm;
 
-    QuicheConfig(String certPath, String keyPath, Boolean verifyPeer, Boolean grease, boolean earlyData,
-                        byte[] protos, Long maxIdleTimeout, Long maxUdpPayloadSize, Long initialMaxData,
-                        Long initialMaxStreamDataBidiLocal, Long initialMaxStreamDataBidiRemote,
+    QuicheConfig(String certPath, String keyPath, Boolean verifyPeer, Boolean grease, boolean logKeys,
+                        boolean earlyData, byte[] protos, Long maxIdleTimeout, Long maxUdpPayloadSize,
+                        Long initialMaxData, Long initialMaxStreamDataBidiLocal, Long initialMaxStreamDataBidiRemote,
                         Long initialMaxStreamDataUni, Long initialMaxStreamsBidi, Long initialMaxStreamsUni,
                         Long ackDelayExponent, Long maxAckDelay, Boolean disableActiveMigration, Boolean enableHystart,
                         QuicCongestionControlAlgorithm congestionControlAlgorithm) {
@@ -46,6 +47,7 @@ final class QuicheConfig {
         this.keyPath = keyPath;
         this.verifyPeer = verifyPeer;
         this.grease = grease;
+        this.logKeys = logKeys;
         this.earlyData = earlyData;
         this.protos = protos;
         this.maxIdleTimeout = maxIdleTimeout;
@@ -80,6 +82,9 @@ final class QuicheConfig {
             }
             if (grease != null) {
                 Quiche.quiche_config_grease(config, grease);
+            }
+            if (logKeys) {
+                Quiche.quiche_config_log_keys(config);
             }
             if (earlyData) {
                 Quiche.quiche_config_enable_early_data(config);

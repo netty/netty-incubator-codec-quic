@@ -36,6 +36,11 @@ final class DefaultQuicChannelConfig extends DefaultChannelConfig implements Qui
      */
     private volatile String peerCertServerName;
 
+    /**
+     * Enables cryptographic secrets being logged to the specified file path.
+     */
+    private volatile String keylogPath;
+
     DefaultQuicChannelConfig(Channel channel) {
         super(channel);
     }
@@ -145,4 +150,16 @@ final class DefaultQuicChannelConfig extends DefaultChannelConfig implements Qui
         this.peerCertServerName = peerCertServerName;
         return this;
     }
+
+    @Override
+    public String getKeylogPath() {
+        return keylogPath;
+    }
+
+    @Override
+    public DefaultQuicChannelConfig setKeylogPath(String keylogPath) {
+        this.keylogPath = keylogPath;
+        return this;
+    }
+
 }

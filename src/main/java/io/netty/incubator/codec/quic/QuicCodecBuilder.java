@@ -26,6 +26,7 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
     private String keyPath;
     private Boolean verifyPeer;
     private Boolean grease;
+    private boolean logKeys;
     private boolean earlyData;
     private byte[] protos;
     private Long maxIdleTimeout;
@@ -87,6 +88,14 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
      */
     public final B grease(boolean enable) {
         grease = enable;
+        return self();
+    }
+
+    /**
+     * Enables logging of secrets.
+     */
+    public final B logKeys() {
+        logKeys = true;
         return self();
     }
 
@@ -226,7 +235,7 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
     }
 
     private QuicheConfig createConfig() {
-        return new QuicheConfig(certPath, keyPath, verifyPeer, grease, earlyData,
+        return new QuicheConfig(certPath, keyPath, verifyPeer, grease, logKeys, earlyData,
                 protos, maxIdleTimeout, maxUdpPayloadSize, initialMaxData,
                 initialMaxStreamDataBidiLocal, initialMaxStreamDataBidiRemote,
                 initialMaxStreamDataUni, initialMaxStreamsBidi, initialMaxStreamsUni,

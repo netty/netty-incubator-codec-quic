@@ -72,4 +72,17 @@ public interface QuicChannelConfig extends ChannelConfig {
      * connection is established.</strong>
      */
     QuicChannelConfig setPeerCertServerName(String peerCertServerName);
+
+    /**
+     * Returns file path where cryptographic secrets are logged to.
+     */
+    String getKeylogPath();
+
+    /**
+     * Enables cryptographic secrets to be logged to the specified file path.
+     *
+     * <strong>Be aware this config setting can only be adjusted before the
+     * connection is established.</strong>
+     */
+    QuicChannelConfig setKeylogPath(String keylogPath);
 }
