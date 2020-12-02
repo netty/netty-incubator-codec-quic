@@ -233,7 +233,7 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
      * Sets the local connection id length that is used.
      */
     public final B localConnectionIdLength(int value) {
-        this.localConnIdLength = ObjectUtil.checkPositiveOrZero(value, "value");
+        this.localConnIdLength = ObjectUtil.checkInRange(value, 0, Quiche.QUICHE_MAX_CONN_ID_LEN,  "value");
         return self();
     }
 
