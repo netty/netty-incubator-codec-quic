@@ -24,6 +24,12 @@ import java.util.Objects;
  */
 public final class QuicConnectionAddress extends SocketAddress {
 
+    /**
+     * Special {@link QuicConnectionAddress} that should be used when the connection address should be generated
+     * and choosen on the fly.
+     */
+    public static final QuicConnectionAddress EPHEMERAL = new QuicConnectionAddress(null, false);
+
     // Accessed by QuicheQuicheChannel
     final ByteBuffer connId;
 
@@ -33,7 +39,7 @@ public final class QuicConnectionAddress extends SocketAddress {
      * @param connId the connection id to use.
      */
     public QuicConnectionAddress(byte[] connId) {
-        this(ByteBuffer.wrap(connId.clone()));
+        this(ByteBuffer.wrap(connId.clone()), true);
     }
 
     /**
@@ -42,8 +48,12 @@ public final class QuicConnectionAddress extends SocketAddress {
      * @param connId the connection id to use.
      */
     public QuicConnectionAddress(ByteBuffer connId) {
+        this(connId, true);
+    }
+
+    private QuicConnectionAddress(ByteBuffer connId, boolean validate) {
         Quic.ensureAvailability();
-        if (connId.remaining() > Quiche.QUICHE_MAX_CONN_ID_LEN) {
+        if (validate && connId.remaining() > Quiche.QUICHE_MAX_CONN_ID_LEN) {
             throw new IllegalArgumentException("Connection ID can only be of max length "
                     + Quiche.QUICHE_MAX_CONN_ID_LEN);
         }
@@ -52,12 +62,18 @@ public final class QuicConnectionAddress extends SocketAddress {
 
     @Override
     public String toString() {
+        if (this == EPHEMERAL) {
+            return "QuicConnectionAddress{EPHEMERAL}";
+        }
         return "QuicConnectionAddress{" +
                 "connId=" + connId + '}';
     }
 
     @Override
     public int hashCode() {
+        if (this == EPHEMERAL) {
+            return System.identityHashCode(EPHEMERAL);
+        }
         return Objects.hash(connId);
     }
 
@@ -67,6 +83,12 @@ public final class QuicConnectionAddress extends SocketAddress {
             return false;
         }
         QuicConnectionAddress address = (QuicConnectionAddress) obj;
+        if (obj == this) {
+            return true;
+        }
+        if (connId == null) {
+            return false;
+        }
         return connId.equals(address.connId);
     }
 

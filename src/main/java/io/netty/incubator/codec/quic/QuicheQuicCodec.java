@@ -41,7 +41,6 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     private final Map<ByteBuffer, QuicheQuicChannel> connections = new HashMap<>();
     private final Queue<QuicheQuicChannel> needsFireChannelReadComplete = new ArrayDeque<>();
-    private final int localConnIdLength;
     private final int maxTokenLength;
     private boolean needsFlush;
     private boolean inChannelRead;
@@ -56,6 +55,7 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
     private ByteBuf tokenLenBuffer;
 
     protected final QuicheConfig config;
+    protected final int localConnIdLength;
     protected long nativeConfig;
 
     QuicheQuicCodec(QuicheConfig config, int localConnIdLength, int maxTokenLength) {

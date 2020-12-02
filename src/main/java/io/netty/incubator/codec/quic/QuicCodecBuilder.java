@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.quic;
 
 import io.netty.channel.ChannelHandler;
+import io.netty.util.internal.ObjectUtil;
 
 /**
  * Abstract base class for {@code QUIC} codec builders.
@@ -41,7 +42,7 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
     private Boolean disableActiveMigration;
     private Boolean enableHystart;
     private QuicCongestionControlAlgorithm congestionControlAlgorithm;
-    protected int localConnIdLength = Quiche.QUICHE_MAX_CONN_ID_LEN;
+    private int localConnIdLength = Quiche.QUICHE_MAX_CONN_ID_LEN;
 
     QuicCodecBuilder() {
         Quic.ensureAvailability();
@@ -228,8 +229,11 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
         return self();
     }
 
-    public final B localConnIdLength(int value) {
-        this.localConnIdLength = value;
+    /**
+     * Sets the local connection id length that is used.
+     */
+    public final B localConnectionIdLength(int value) {
+        this.localConnIdLength = ObjectUtil.checkPositiveOrZero(value, "value");
         return self();
     }
 
@@ -253,8 +257,8 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
      */
     public final ChannelHandler build() {
         validate();
-        return build(createConfig());
+        return build(createConfig(), localConnIdLength);
     }
 
-    protected abstract ChannelHandler build(QuicheConfig config);
+    protected abstract ChannelHandler build(QuicheConfig config, int localConnIdLength);
 }
