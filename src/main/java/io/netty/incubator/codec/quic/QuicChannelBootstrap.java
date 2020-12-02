@@ -153,8 +153,23 @@ public final class QuicChannelBootstrap {
         if (remote == null) {
             throw new IllegalStateException("remote not set");
         }
-        final QuicConnectionAddress address = connectionAddress == null ?
-                QuicConnectionAddress.random() : connectionAddress;
+        final QuicheQuicCodec codec = parent.pipeline().get(QuicheQuicCodec.class);
+        if (codec == null) {
+            throw new IllegalStateException("parent channel does not have a QuicheQuicCodec handler");
+        }
+        final int localConnIdLength = codec.localConnIdLength();
+        final QuicConnectionAddress address;
+
+        if (connectionAddress == null) {
+            address = QuicConnectionAddress.random(localConnIdLength);
+        } else {
+            if (connectionAddress.connId.remaining() != localConnIdLength) {
+                throw new IllegalStateException("connectionAddress has length "
+                        + connectionAddress.connId.remaining()
+                        + " instead of " + localConnIdLength);
+            }
+            address = connectionAddress;
+        }
 
         QuicChannel channel = QuicheQuicChannel.forClient(parent, (InetSocketAddress) remote,
                 streamHandler, Quic.optionsArray(streamOptions), Quic.attributesArray(streamAttrs));

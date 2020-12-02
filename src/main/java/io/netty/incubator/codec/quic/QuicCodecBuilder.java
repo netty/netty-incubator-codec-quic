@@ -41,6 +41,7 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
     private Boolean disableActiveMigration;
     private Boolean enableHystart;
     private QuicCongestionControlAlgorithm congestionControlAlgorithm;
+    protected int localConnIdLength = Quiche.QUICHE_MAX_CONN_ID_LEN;
 
     QuicCodecBuilder() {
         Quic.ensureAvailability();
@@ -224,6 +225,11 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
      */
     public final B enableHystart(boolean value) {
         this.enableHystart = value;
+        return self();
+    }
+
+    public final B localConnIdLength(int value) {
+        this.localConnIdLength = value;
         return self();
     }
 

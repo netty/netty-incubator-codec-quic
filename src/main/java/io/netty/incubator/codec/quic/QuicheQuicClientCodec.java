@@ -28,10 +28,10 @@ import java.nio.ByteBuffer;
  */
 final class QuicheQuicClientCodec extends QuicheQuicCodec {
 
-    QuicheQuicClientCodec(QuicheConfig config) {
+    QuicheQuicClientCodec(QuicheConfig config, int localConnIdLength) {
         // Let's just use Quic.MAX_DATAGRAM_SIZE as the maximum size for a token on the client side. This should be
         // safe enough and as we not have too many codecs at the same time this should be ok.
-        super(config, Quic.MAX_DATAGRAM_SIZE);
+        super(config, localConnIdLength, Quic.MAX_DATAGRAM_SIZE);
     }
 
     @Override

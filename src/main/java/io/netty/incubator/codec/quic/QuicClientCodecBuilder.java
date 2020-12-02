@@ -25,6 +25,6 @@ public final class QuicClientCodecBuilder extends QuicCodecBuilder<QuicClientCod
 
     @Override
     protected ChannelHandler build(QuicheConfig config) {
-        return new QuicheQuicClientCodec(config);
+        return new QuicheQuicClientCodec(config, localConnIdLength);
     }
 }

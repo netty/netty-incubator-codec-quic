@@ -71,9 +71,21 @@ public final class QuicConnectionAddress extends SocketAddress {
     }
 
     /**
-     * Return a random generated {@link QuicConnectionAddress} that can be used to connect a {@link QuicChannel}
+     * Return a random generated {@link QuicConnectionAddress} of a given length
+     * that can be used to connect a {@link QuicChannel}
+     *
+     * @param length the length of the {@link QuicConnectionAddress} to generate.
+     */
+    public static QuicConnectionAddress random(int length) {
+        return new QuicConnectionAddress(QuicConnectionIdGenerator.randomGenerator().newId(length));
+    }
+
+    /**
+     * Return a random generated {@link QuicConnectionAddress} of maximum size
+     * that can be used to connect a {@link QuicChannel}
      */
     public static QuicConnectionAddress random() {
-        return new QuicConnectionAddress(QuicConnectionIdGenerator.randomGenerator().newId());
+        return random(Quiche.QUICHE_MAX_CONN_ID_LEN);
     }
+
 }
