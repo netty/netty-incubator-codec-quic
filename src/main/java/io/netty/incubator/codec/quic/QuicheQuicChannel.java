@@ -126,7 +126,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private ByteBuf finBuffer;
     private ChannelPromise connectPromise;
     private ScheduledFuture<?> connectTimeoutFuture;
-    //private ByteBuffer connectId;
     private QuicConnectionAddress connectAddress;
     private ByteBuffer key;
     private CloseData closeData;
