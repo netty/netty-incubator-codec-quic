@@ -72,10 +72,6 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
         connections.put(channel.key(), channel);
     }
 
-    int localConnIdLength() {
-        return this.localConnIdLength;
-    }
-
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
         versionBuffer = allocateNativeOrder(Integer.BYTES);
