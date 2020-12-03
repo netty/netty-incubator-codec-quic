@@ -134,7 +134,13 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
         return channelPromise;
     }
 
-    public void shutdownOutput0(ChannelPromise channelPromise) {
+    private void shutdownOutput0(ChannelPromise channelPromise) {
+        try {
+            sendFinIfNeeded();
+        } catch (Throwable e) {
+            channelPromise.setFailure(e);
+            return;
+        }
         outputShutdown = true;
         parent().streamShutdownWrite(streamId(), channelPromise);
     }
@@ -159,7 +165,13 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
         return channelPromise;
     }
 
-    public void shutdown0(ChannelPromise channelPromise) {
+    private void shutdown0(ChannelPromise channelPromise) {
+        try {
+            sendFinIfNeeded();
+        } catch (Throwable e) {
+            channelPromise.setFailure(e);
+            return;
+        }
         inputShutdown = true;
         outputShutdown = true;
         parent().streamShutdownReadAndWrite(streamId(), channelPromise);
@@ -195,13 +207,17 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
         doClose();
     }
 
+    private void sendFinIfNeeded() throws Exception {
+        if (!finSent) {
+            finSent = true;
+            parent().streamSendFin(streamId());
+        }
+    }
+
     @Override
     protected void doClose() throws Exception {
         active = false;
-        if (!finSent) {
-            finSent = true;
-            parent().streamClose(streamId());
-        }
+        sendFinIfNeeded();
         if (type() == QuicStreamType.UNIDIRECTIONAL && isLocalCreated()) {
             inputShutdown = true;
             outputShutdown = true;
