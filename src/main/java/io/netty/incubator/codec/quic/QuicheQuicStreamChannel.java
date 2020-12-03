@@ -143,13 +143,15 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
 
     private void shutdownOutput0(ChannelPromise channelPromise) {
         try {
+            // Just send a FIN to shutdown the output as we don't want to drop the already queued packets in the
+            // quic connection for this stream.
             sendFinIfNeeded();
         } catch (Throwable e) {
             channelPromise.setFailure(e);
             return;
         }
+        channelPromise.setSuccess();
         outputShutdown = true;
-        parent().streamShutdownWrite(streamId(), channelPromise);
         closeIfDone();
     }
 
@@ -175,6 +177,8 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
 
     private void shutdown0(ChannelPromise channelPromise) {
         try {
+            // Just send a FIN to shutdown the output as we don't want to drop the already queued packets in the
+            // quic connection for this stream.
             sendFinIfNeeded();
         } catch (Throwable e) {
             channelPromise.setFailure(e);
@@ -182,7 +186,7 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
         }
         inputShutdown = true;
         outputShutdown = true;
-        parent().streamShutdownReadAndWrite(streamId(), channelPromise);
+        parent().streamShutdownRead(streamId(), channelPromise);
         closeIfDone();
     }
 
