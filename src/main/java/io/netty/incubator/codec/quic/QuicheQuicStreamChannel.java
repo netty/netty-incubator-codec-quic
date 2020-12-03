@@ -57,6 +57,12 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
         super(parent);
         config = new DefaultQuicStreamChannelConfig(this);
         this.address = new QuicStreamAddress(streamId);
+
+        // Local created unidirectional streams have the input shutdown by spec. There will never be any data for
+        // these to be read.
+        if (parent.streamType(streamId) == QuicStreamType.UNIDIRECTIONAL && parent.isStreamLocalCreated(streamId)) {
+            inputShutdown = true;
+        }
     }
 
     @Override
@@ -112,6 +118,7 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
     private void shutdownInput0(ChannelPromise channelPromise) {
         inputShutdown = true;
         parent().streamShutdownRead(streamId(), channelPromise);
+        closeIfDone();
     }
 
     @Override
@@ -143,6 +150,7 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
         }
         outputShutdown = true;
         parent().streamShutdownWrite(streamId(), channelPromise);
+        closeIfDone();
     }
 
     @Override
@@ -175,6 +183,7 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
         inputShutdown = true;
         outputShutdown = true;
         parent().streamShutdownReadAndWrite(streamId(), channelPromise);
+        closeIfDone();
     }
 
     @Override
@@ -226,6 +235,12 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
             parent().streamClosed(streamId());
         } else {
             removeStreamFromParent();
+        }
+    }
+
+    private void closeIfDone() {
+        if (finSent && (finReceived || type() == QuicStreamType.UNIDIRECTIONAL && isLocalCreated())) {
+            unsafe().close(unsafe().voidPromise());
         }
     }
 
