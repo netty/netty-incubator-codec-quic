@@ -49,6 +49,7 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
             outputShutdown = true;
         }
     };
+    private final long streamId;
 
     private boolean readable;
     private boolean readPending;
@@ -61,10 +62,11 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
     private volatile boolean inputShutdown;
     private volatile boolean outputShutdown;
 
-    QuicheQuicStreamChannel(QuicheQuicChannel parent, long streamId) {
+    QuicheQuicStreamChannel(QuicheQuicChannel parent, QuicStreamAddress address, long streamId) {
         super(parent);
         config = new DefaultQuicStreamChannelConfig(this);
-        this.address = new QuicStreamAddress(streamId);
+        this.address = address;
+        this.streamId = streamId;
 
         // Local created unidirectional streams have the input shutdown by spec. There will never be any data for
         // these to be read.
@@ -95,7 +97,7 @@ final class QuicheQuicStreamChannel extends AbstractChannel implements QuicStrea
 
     @Override
     public long streamId() {
-        return address.streamId();
+        return streamId;
     }
 
     @Override

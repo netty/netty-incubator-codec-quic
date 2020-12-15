@@ -50,6 +50,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AlreadyConnectedException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ConnectionPendingException;
+import java.nio.channels.NotYetConnectedException;
 import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Queue;
@@ -284,11 +285,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     @Override
     public Future<QuicStreamChannel> createStream(QuicStreamType type, ChannelHandler handler,
                                                   Promise<QuicStreamChannel> promise) {
-        if (eventLoop().inEventLoop()) {
-            ((QuicChannelUnsafe) unsafe()).connectStream(type, handler, promise);
-        } else {
-            eventLoop().execute(() -> ((QuicChannelUnsafe) unsafe()).connectStream(type, handler, promise));
-        }
+        // Stream creations also happen through the ChannelPipeline
+        connect(new QuicStreamAddress(type, handler, promise)).addListener(f -> {
+            Throwable cause = f.cause();
+            if (cause != null) {
+                promise.tryFailure(cause);
+            }
+        });
         return promise;
     }
 
@@ -912,24 +915,27 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private final class QuicChannelUnsafe extends AbstractChannel.AbstractUnsafe {
 
-        void connectStream(QuicStreamType type, ChannelHandler handler,
-                           Promise<QuicStreamChannel> promise) {
+        void connectStream(QuicStreamAddress address) {
+            QuicStreamType type = address.type;
+            ChannelHandler handler = address.handler;
+            Promise<QuicStreamChannel> streamPromise = address.promise;
+
             long streamId = idGenerator.nextStreamId(type == QuicStreamType.BIDIRECTIONAL);
             try {
                 Quiche.throwIfError(streamSend(streamId, Unpooled.EMPTY_BUFFER, false));
             } catch (Exception e) {
-                promise.setFailure(e);
+                streamPromise.setFailure(e);
                 return;
             }
-            QuicheQuicStreamChannel streamChannel = addNewStreamChannel(streamId);
+            QuicheQuicStreamChannel streamChannel = addNewStreamChannel(address, streamId);
             if (handler != null) {
                 streamChannel.pipeline().addLast(handler);
             }
             eventLoop().register(streamChannel).addListener((ChannelFuture f) -> {
                 if (f.isSuccess()) {
-                    promise.setSuccess(streamChannel);
+                    streamPromise.setSuccess(streamChannel);
                 } else {
-                    promise.setFailure(f.cause());
+                    streamPromise.setFailure(f.cause());
                     streams.remove(streamId);
                 }
             });
@@ -938,6 +944,27 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         @Override
         public void connect(SocketAddress remote, SocketAddress local, ChannelPromise channelPromise) {
             assert eventLoop().inEventLoop();
+            if (remote instanceof QuicStreamAddress) {
+                QuicStreamAddress address = (QuicStreamAddress) remote;
+                address.promise.addListener(f -> {
+                    Throwable cause = f.cause();
+                    if (cause == null) {
+                        channelPromise.setSuccess();
+                    } else {
+                        channelPromise.setFailure(cause);
+                    }
+                });
+                if (!isActive()) {
+                    if (key == null) {
+                        address.promise.setFailure(new NotYetConnectedException());
+                    } else {
+                        address.promise.setFailure(new ClosedChannelException());
+                    }
+                } else {
+                    ((QuicChannelUnsafe) unsafe()).connectStream(address);
+                }
+                return;
+            }
             if (server) {
                 channelPromise.setFailure(new UnsupportedOperationException());
                 return;
@@ -1043,7 +1070,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                                             // We create a new channel and fire it through the pipeline which
                                             // means we also need to ensure we call fireChannelReadCompletePending.
                                             fireChannelReadCompletePending = true;
-                                            streamChannel = addNewStreamChannel(streamId);
+                                            streamChannel = addNewStreamChannel(
+                                                    new QuicStreamAddress(streamType(streamId), null, null), streamId);
                                             streamChannel.readable();
                                             pipeline().fireChannelRead(streamChannel);
                                         } else {
@@ -1148,9 +1176,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             }
         }
 
-        private QuicheQuicStreamChannel addNewStreamChannel(long streamId) {
+        private QuicheQuicStreamChannel addNewStreamChannel(QuicStreamAddress address, long streamId) {
             QuicheQuicStreamChannel streamChannel = new QuicheQuicStreamChannel(
-                    QuicheQuicChannel.this, streamId);
+                    QuicheQuicChannel.this, address, streamId);
             QuicheQuicStreamChannel old = streams.put(streamId, streamChannel);
             assert old == null;
             return streamChannel;

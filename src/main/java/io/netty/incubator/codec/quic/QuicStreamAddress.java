@@ -15,47 +15,39 @@
  */
 package io.netty.incubator.codec.quic;
 
+import io.netty.channel.ChannelHandler;
+import io.netty.util.concurrent.Promise;
+
 import java.net.SocketAddress;
-import java.util.Objects;
 
 /**
  * A {@link SocketAddress} for QUIC stream.
  */
 public final class QuicStreamAddress extends SocketAddress {
 
-    private final long streamId;
+    final QuicStreamType type;
+    final ChannelHandler handler;
+    final Promise<QuicStreamChannel> promise;
 
-    QuicStreamAddress(long streamId) {
-        this.streamId = streamId;
+    QuicStreamAddress(QuicStreamType type, ChannelHandler handler, Promise<QuicStreamChannel> promise) {
+        this.type = type;
+        this.handler = handler;
+        this.promise = promise;
     }
 
     /**
-     * Return the id of the stream.
+     * Returns the {@link QuicStreamType}.
      *
-     * @return the id.
+     * @return the type.
      */
-    public long streamId() {
-        return streamId;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof QuicStreamAddress)) {
-            return false;
-        }
-        QuicStreamAddress that = (QuicStreamAddress) o;
-        return streamId == that.streamId;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(streamId);
+    public QuicStreamType type() {
+        return type;
     }
 
     @Override
     public String toString() {
         return "QuicStreamAddress{" +
-                "streamId=" + streamId +
+                "type=" + type +
                 '}';
     }
 }
