@@ -23,6 +23,8 @@ import io.netty.channel.ChannelPromise;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 
+import java.net.SocketAddress;
+
 /**
  * A QUIC {@link Channel}.
  */
@@ -39,6 +41,11 @@ public interface QuicChannel extends Channel {
      * The {@link ChannelHandler} (if not {@code null}) is added to the {@link io.netty.channel.ChannelPipeline} of the
      * {@link QuicStreamChannel} automatically.
      *
+     * As creating streams is kind of similar to create connections in other protocols this operation will flow
+     * through the {@link io.netty.channel.ChannelPipeline} by using
+     * {@link io.netty.channel.ChannelPipeline#connect(SocketAddress)} with a {@link QuicStreamAddress}. This allows
+     * you to intercept stream creation attempts if needed.
+     *
      * @param type      the {@link QuicStreamType} of the {@link QuicStreamChannel}.
      * @param handler   the {@link ChannelHandler} that will be added to the {@link QuicStreamChannel}s
      *                  {@link io.netty.channel.ChannelPipeline} during the stream creation.
@@ -52,6 +59,11 @@ public interface QuicChannel extends Channel {
      * Creates a stream that is using this {@link QuicChannel} and notifies the {@link Promise} once done.
      * The {@link ChannelHandler} (if not {@code null}) is added to the {@link io.netty.channel.ChannelPipeline} of the
      * {@link QuicStreamChannel} automatically.
+     *
+     * As creating streams is kind of similar to create connections in other protocols this operation will flow
+     * through the {@link io.netty.channel.ChannelPipeline} by using
+     * {@link io.netty.channel.ChannelPipeline#connect(SocketAddress, SocketAddress, ChannelPromise)}
+     * with a {@link QuicStreamAddress}. This allows you to intercept stream creation attempts if needed.
      *
      * @param type      the {@link QuicStreamType} of the {@link QuicStreamChannel}.
      * @param handler   the {@link ChannelHandler} that will be added to the {@link QuicStreamChannel}s
