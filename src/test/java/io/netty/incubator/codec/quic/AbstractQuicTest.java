@@ -23,7 +23,7 @@ import org.junit.rules.Timeout;
 public abstract class AbstractQuicTest {
 
     private static final int TEST_GLOBAL_TIMEOUT_VALUE = Integer.getInteger(
-            "io.netty.incubator.codec.quic.defaultTestTimeout",10);
+            "io.netty.incubator.codec.quic.defaultTestTimeout", 10);
 
     @Rule
     public final Timeout globalTimeout = Timeout.seconds(TEST_GLOBAL_TIMEOUT_VALUE);
