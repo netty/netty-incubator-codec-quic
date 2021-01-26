@@ -333,6 +333,7 @@
 
                       <exec executable="git" failonerror="true" dir="${project.build.directory}" resolveexecutable="true">
                         <arg value="clone" />
+                        <arg value="--recursive" />
                         <arg value="--branch" />
                         <arg value="${quicheBranch}" />
                         <arg value="https://github.com/cloudflare/quiche" />
