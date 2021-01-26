@@ -317,36 +317,36 @@
               <taskdef resource="net/sf/antcontrib/antcontrib.properties" />
               <property environment="env" />
               <if>
-                <available file="${quicheSourceDir}" />
-                <then>
-                  <echo message="Quiche was already cloned, skipping the clone step." />
-                </then>
-                <else>
-                  <echo message="Clone Quiche" />
-
-                  <exec executable="git" failonerror="true" dir="${project.build.directory}" resolveexecutable="true">
-                    <arg value="clone" />
-                    <arg value="--branch" />
-                    <arg value="${quicheBranch}" />
-                    <arg value="https://github.com/cloudflare/quiche" />
-                    <arg value="${quicheSourceDir}" />
-                  </exec>
-
-                  <!-- Use the known SHA of the commit -->
-                  <exec executable="git" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
-                    <arg value="checkout" />
-                    <arg value="${quicheCommitSha}" />
-                  </exec>
-                </else>
-              </if>
-              <if>
                 <available file="${quicheHomeDir}" />
                 <then>
                   <echo message="Quiche was already build, skipping the build step." />
                 </then>
-                <else>
-                  <echo message="Building Quiche" />
 
+                <else>
+                  <if>
+                    <available file="${quicheSourceDir}" />
+                    <then>
+                      <echo message="Quiche was already cloned, skipping the clone step." />
+                    </then>
+                    <else>
+                      <echo message="Clone Quiche" />
+
+                      <exec executable="git" failonerror="true" dir="${project.build.directory}" resolveexecutable="true">
+                        <arg value="clone" />
+                        <arg value="--branch" />
+                        <arg value="${quicheBranch}" />
+                        <arg value="https://github.com/cloudflare/quiche" />
+                        <arg value="${quicheSourceDir}" />
+                      </exec>
+
+                      <!-- Use the known SHA of the commit -->
+                      <exec executable="git" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
+                        <arg value="checkout" />
+                        <arg value="${quicheCommitSha}" />
+                      </exec>
+                    </else>
+                  </if>
+                  <echo message="Building Quiche" />
                   <if>
                     <equals arg1="${os.detected.name}" arg2="osx" />
                     <then>
@@ -361,6 +361,7 @@
                         <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/"/>
                       </exec>
                     </then>
+
                     <else>
                       <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
                         <arg value="build" />
@@ -372,8 +373,6 @@
                       </exec>
                     </else>
                   </if>
-
-
                   <!-- Only copy the libs and header files we need -->
                   <mkdir dir="${quicheHomeDir}" />
                   <copy file="${quicheBuildDir}/libquiche.a" todir="${quicheHomeDir}/build/" />
