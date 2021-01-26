@@ -328,7 +328,6 @@
                     <arg value="clone" />
                     <arg value="--branch" />
                     <arg value="${quicheBranch}" />
-                    <arg value="--recursive" />
                     <arg value="https://github.com/cloudflare/quiche" />
                     <arg value="${quicheSourceDir}" />
                   </exec>
