@@ -11,10 +11,10 @@ ENV GO_VERSION 1.9.3
 RUN sed -i -e 's/^mirrorlist/#mirrorlist/g' -e 's/^#baseurl=http:\/\/mirror.centos.org\/centos\/$releasever\//baseurl=http:\/\/vault.centos.org\/6.10\//g' /etc/yum.repos.d/CentOS-Base.repo
 
 # We want to have git 2.x for the maven scm plugin
-RUN yum install -y http://opensource.wandisco.com/centos/6/git/x86_64/wandisco-git-release-6-1.noarch.rpm
+RUN yum -4 install -y http://opensource.wandisco.com/centos/6/git/x86_64/wandisco-git-release-6-1.noarch.rpm
 
 # install dependencies
-RUN yum install -y \
+RUN yum -4 install -y \
  apr-devel \
  autoconf \
  automake \
@@ -41,7 +41,7 @@ RUN wget -q http://storage.googleapis.com/golang/go$GO_VERSION.linux-amd64.tar.g
 
 RUN wget -q http://linuxsoft.cern.ch/cern/scl/RPM-GPG-KEY-cern && mv RPM-GPG-KEY-cern /etc/pki/rpm-gpg/
 RUN wget -q http://linuxsoft.cern.ch/cern/scl/slc6-scl.repo && mv slc6-scl.repo /etc/yum.repos.d
-RUN yum install -y devtoolset-3-gcc-c++
+RUN yum -4 install -y devtoolset-3-gcc-c++
 RUN echo 'source /opt/rh/devtoolset-3/enable' >> ~/.bashrc
 
 # This is workaround to be able to compile boringssl with -DOPENSSL_C11_ATOMIC as while we use a recent gcc installation it still needs some
