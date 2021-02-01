@@ -10,6 +10,8 @@ ENV GO_VERSION 1.9.3
 # Update as we need to use the vault now.
 RUN sed -i -e 's/^mirrorlist/#mirrorlist/g' -e 's/^#baseurl=http:\/\/mirror.centos.org\/centos\/$releasever\//baseurl=http:\/\/vault.centos.org\/6.10\//g' /etc/yum.repos.d/CentOS-Base.repo
 
+RUN sed -i -e 's/^[main]/[main]\nip_resolve=4/' /etc/yum.conf
+
 # We want to have git 2.x for the maven scm plugin
 RUN yum install -y http://opensource.wandisco.com/centos/6/git/x86_64/wandisco-git-release-6-1.noarch.rpm
 
