@@ -76,6 +76,17 @@ jobs:
         with:
           args: install ninja nasm
 
+      # Cache .m2/repository
+      - uses: actions/cache@v2
+        env:
+          cache-name: staging-cache-windows-m2-repository
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.cache-name }}-
+            ${{ runner.os }}-
+
       - name: Stage snapshots to local staging directory
         run: mvn --file pom.xml clean package org.sonatype.plugins:nexus-staging-maven-plugin:deploy -DaltStagingDirectory=local-staging -DskipRemoteStaging=true -DskipTests=true
 
