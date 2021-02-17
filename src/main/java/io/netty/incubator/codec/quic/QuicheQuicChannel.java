@@ -1307,7 +1307,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                     timeoutFuture = eventLoop().schedule(this, nanos, TimeUnit.NANOSECONDS);
                 }
             }
-
         }
 
         void cancel() {
