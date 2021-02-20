@@ -17,26 +17,52 @@ package io.netty.incubator.codec.quic;
 
 import java.util.Objects;
 
+/**
+ * Configuration used for setup
+ * <a href="https://quiclog.github.io/internet-drafts/draft-marx-qlog-main-schema.html">qlog</a>.
+ */
 public final class QLogConfiguration {
 
     private final String path;
     private final String logTitle;
     private final String logDescription;
 
+    /**
+     * Create a new configuration.
+     *
+     * @param path              the path to the log file to use. This file must not exist yet.
+     * @param logTitle          the title to use when logging.
+     * @param logDescription    the description to use when logging.
+     */
     public QLogConfiguration(String path, String logTitle, String logDescription) {
         this.path = Objects.requireNonNull(path, "path");
         this.logTitle = Objects.requireNonNull(logTitle, "logTitle");
         this.logDescription = Objects.requireNonNull(logDescription, "logDescription");
     }
 
+    /**
+     * Return the path to the log file.
+     *
+     * @return the path.
+     */
     public String path() {
         return path;
     }
 
+    /**
+     * Return the title.
+     *
+     * @return the title.
+     */
     public String logTitle() {
         return logTitle;
     }
 
+    /**
+     * Return the description.
+     *
+     * @return the description.
+     */
     public String logDescription() {
         return logDescription;
     }
