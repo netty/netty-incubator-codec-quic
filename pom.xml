@@ -173,6 +173,9 @@
         <os>
           <family>linux</family>
         </os>
+        <property>
+          <name>!android</name>
+        </property>
       </activation>
       <properties>
         <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
@@ -187,6 +190,60 @@
         <libquiche>libquiche.a</libquiche>
         <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL -Wl,-lrt</extraLdflags>
         <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=${os.detected.arch}</bundleNativeCode>
+      </properties>
+    </profile>
+    <profile>
+      <id>android</id>
+      <activation>
+        <os>
+          <family>linux</family>
+        </os>
+        <property>
+          <name>android</name>
+        </property>
+      </activation>
+      <properties>
+        <skipTests>true</skipTests>
+        <platform>android</platform>
+        <androidNdkVersion>21</androidNdkVersion>
+        <androidMinSdkVersion>21</androidMinSdkVersion>
+        <!-- https://developer.android.com/ndk/guides/other_build_systems -->
+        <androidAbi>arm64-v8a</androidAbi>
+        <androidTriple>aarch64-linux-android</androidTriple>
+        <quicheTarget>${androidAbi}</quicheTarget>
+        <cargoTarget>--target=${quicheTarget}</cargoTarget>
+        <quicheBuildDir>${quicheSourceDir}/target/${androidTriple}/release</quicheBuildDir>
+        <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
+        <extraCxxflags>-O3 -fno-omit-frame-pointer</extraCxxflags>
+        <!-- On *nix, add ASM flags to disable executable stack -->
+        <cmakeAsmFlags>-Wa,--noexecstack</cmakeAsmFlags>
+        <cmakeCFlags>${extraCflags} -DOPENSSL_C11_ATOMIC</cmakeCFlags>
+        <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
+        <cmakeCxxFlags>${extraCxxflags} -DOPENSSL_C11_ATOMIC -Wno-error=shadow -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS</cmakeCxxFlags>
+        <libssl>libssl.a</libssl>
+        <libcrypto>libcrypto.a</libcrypto>
+        <libquiche>libquiche.a</libquiche>
+
+        <!-- https://developer.android.com/ndk/guides/other_build_systems -->
+        <jniLibName>netty_quiche_${platform}-${quicheTarget}</jniLibName>
+        <jni.classifier>${platform}-${quicheTarget}</jni.classifier>
+        <cflags>-std=c99 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3 -I${quicheHomeIncludeDir} -I${boringsslHomeIncludeDir}</cflags>
+        <bundleNativeCode>META-INF/native/${jniLibName}.dll;osname=android;processor=${os.detected.arch}</bundleNativeCode> <!-- TODO -->
+        <ndkToolchain>${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64</ndkToolchain>
+        <extraLdflags>-Wl,-soname=${jniLibName}.so -Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
+
+        <extraConfigureArg>--host=${androidTriple}</extraConfigureArg>
+
+        <!--<extraConfigureArg>${extraConfigureArg} TOOLCHAIN=${ndkToolchain}</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} TARGET=${androidTriple}</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} API=${androidMinSdkVersion}</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} AR=${ndkToolchain}/bin/${androidTriple}-ar</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} CC=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} AS=${ndkToolchain}/bin/${androidTriple}-as</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} CXX=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang++</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} LD=${ndkToolchain}/bin/${androidTriple}-ld</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} RANLIB=${ndkToolchain}/bin/${androidTriple}-ranlib</extraConfigureArg>
+        <extraConfigureArg>${extraConfigureArg} STRIP=${ndkToolchain}/bin/${androidTriple}-strip</extraConfigureArg>-->
       </properties>
     </profile>
     <profile>
@@ -344,22 +401,43 @@
                     </exec>
 
                     <mkdir dir="${boringsslBuildDir}" />
-                    <exec executable="cmake" failonerror="true" dir="${boringsslBuildDir}" resolveexecutable="true">
-                      <env key="MACOSX_DEPLOYMENT_TARGET" value="${macosxDeploymentTarget}" />
-                      <arg value="-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE" />
-                      <arg value="-DCMAKE_BUILD_TYPE=Release" />
-                      <arg value="-DCMAKE_ASM_FLAGS=${cmakeAsmFlags}" />
-                      <arg value="-DCMAKE_C_FLAGS_RELEASE=${cmakeCFlags}" />
-                      <arg value="-DCMAKE_CXX_FLAGS_RELEASE=${cmakeCxxFlags}" />
-                      <arg value="-DCMAKE_CXX_FLAGS_RELEASE=${cmakeCxxFlags}" />
-                      <arg line="${extraCmakeFlags}" />
-                      <arg value="-GNinja" />
-                      <arg value="${boringsslSourceDir}" />
-                    </exec>
+
+                    <if>
+                      <equals arg1="${platform}" arg2="android" />
+                      <then>
+                        <!-- https://boringssl.googlesource.com/boringssl/+/HEAD/BUILDING.md#building-for-android -->
+                        <exec executable="cmake" failonerror="true" dir="${boringsslBuildDir}" resolveexecutable="true">
+                          <arg value="-DANDROID_ABI=${quicheTarget}" />
+                          <arg value="-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" />
+                          <arg value="-DANDROID_NATIVE_API_LEVEL=${androidNdkVersion}" />
+                          <arg value="-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE" />
+                          <arg value="-DCMAKE_BUILD_TYPE=Release" />
+                          <arg value="-DCMAKE_ASM_FLAGS=${cmakeAsmFlags}" />
+                          <arg value="-DCMAKE_C_FLAGS_RELEASE=${cmakeCFlags}" />
+                          <arg value="-DCMAKE_CXX_FLAGS_RELEASE=${cmakeCxxFlags}" />
+                          <arg value="-GNinja" />
+                          <arg value="${boringsslSourceDir}" />
+                        </exec>
+                      </then>
+                      <else>
+                        <exec executable="cmake" failonerror="true" dir="${boringsslBuildDir}" resolveexecutable="true">
+                          <env key="MACOSX_DEPLOYMENT_TARGET" value="${macosxDeploymentTarget}" />
+                          <arg value="-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE" />
+                          <arg value="-DCMAKE_BUILD_TYPE=Release" />
+                          <arg value="-DCMAKE_ASM_FLAGS=${cmakeAsmFlags}" />
+                          <arg value="-DCMAKE_C_FLAGS_RELEASE=${cmakeCFlags}" />
+                          <arg value="-DCMAKE_CXX_FLAGS_RELEASE=${cmakeCxxFlags}" />
+                          <arg value="-DCMAKE_CXX_FLAGS_RELEASE=${cmakeCxxFlags}" />
+                          <arg line="${extraCmakeFlags}" />
+                          <arg value="-GNinja" />
+                          <arg value="${boringsslSourceDir}" />
+                        </exec>
+                      </else>
+                    </if>
                     <if>
                       <!-- may be called ninja-build or ninja -->
                       <!-- See https://github.com/netty/netty-tcnative/issues/475 -->
-                      <available file="ninja-build" filepath="${env.PATH}" />
+                      <available file="ninja-build" filepath="${PATH}" />
                       <then>
                         <property name="ninjaExecutable" value="ninja-build" />
                       </then>
@@ -429,39 +507,52 @@
                     </if>
                     <echo message="Building Quiche" />
                     <if>
-                      <equals arg1="${os.detected.name}" arg2="windows" />
+                      <equals arg1="${platform}" arg2="android" />
                       <then>
                         <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
-                          <arg line="build --features &quot;ffi qlog&quot; --release" />
-                          <arg value="${cargoTarget}" />
-                          <!-- See https://github.com/cloudflare/quiche/blob/0.7.0/src/build.rs#L73 -->
-                          <env key="DEBUG" value="true" />
-                          <env key="OPT_LEVEL" value="3" />
-                          <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/" />
-                        </exec>
-                      </then>
-                      <elseif>
-                        <equals arg1="${crossCompile}" arg2="true" />
-                        <then>
-                          <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
-                            <arg line="build --features &quot;ffi qlog&quot; --release" />
-                            <arg value="${cargoTarget}" />
-                            <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/" />
-                            <!-- Lets enable frame-pointers so we can profile better -->
-                            <env key="RUSTFLAGS" value="-Cforce-frame-pointers=yes" />
-                            <env key="TARGET_CC" value="aarch64-none-linux-gnu-gcc" />
-                          </exec>
-                        </then>
-                      </elseif>
-                      <else>
-                        <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
-                          <arg line="build --features &quot;ffi qlog&quot; --release" />
+                          <arg line='ndk ${cargoTarget} -p ${androidNdkVersion} -- build --features "ffi qlog" --release' />
                           <env key="CFLAGS" value="${extraCflags}" />
                           <env key="CXXFLAGS" value="${extraCxxflags}" />
                           <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/" />
-                          <!-- Lets enable frame-pointers so we can profile better -->
-                          <env key="RUSTFLAGS" value="-Cforce-frame-pointers=yes" />
                         </exec>
+                      </then>
+                      <else>
+                        <if>
+                          <equals arg1="${os.detected.name}" arg2="windows" />
+                          <then>
+                            <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
+                              <arg line="build --features &quot;ffi qlog&quot; --release" />
+                              <arg value="${cargoTarget}" />
+                              <!-- See https://github.com/cloudflare/quiche/blob/0.7.0/src/build.rs#L73 -->
+                              <env key="DEBUG" value="true" />
+                              <env key="OPT_LEVEL" value="3" />
+                              <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/" />
+                            </exec>
+                          </then>
+                          <elseif>
+                            <equals arg1="${crossCompile}" arg2="true" />
+                            <then>
+                              <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
+                                <arg line="build --features &quot;ffi qlog&quot; --release" />
+                                <arg value="${cargoTarget}" />
+                                <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/" />
+                                <!-- Lets enable frame-pointers so we can profile better -->
+                                <env key="RUSTFLAGS" value="-Cforce-frame-pointers=yes" />
+                                <env key="TARGET_CC" value="aarch64-none-linux-gnu-gcc" />
+                              </exec>
+                            </then>
+                          </elseif>
+                          <else>
+                            <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
+                              <arg line="build --features &quot;ffi qlog&quot; --release" />
+                              <env key="CFLAGS" value="${extraCflags}" />
+                              <env key="CXXFLAGS" value="${extraCxxflags}" />
+                              <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/" />
+                              <!-- Lets enable frame-pointers so we can profile better -->
+                              <env key="RUSTFLAGS" value="-Cforce-frame-pointers=yes" />
+                            </exec>
+                          </else>
+                        </if>
                       </else>
                     </if>
                     <!-- Only copy the libs and header files we need -->
@@ -762,9 +853,32 @@
         <version>1.18</version>
         <executions>
           <execution>
-            <id>build-native-lib</id>
+            <id>generate-native-lib</id>
             <configuration>
               <name>${jniLibName}</name>
+              <nativeSourceDirectory>${generatedSourcesDir}</nativeSourceDirectory>
+              <customPackageDirectory>${templateDir}</customPackageDirectory>
+              <windowsBuildTool>msbuild</windowsBuildTool>
+              <windowsCustomProps>true</windowsCustomProps>
+              <windowsPlatformToolset>v140</windowsPlatformToolset>
+              <libDirectory>${nativeLibOnlyDir}</libDirectory>
+            </configuration>
+            <goals>
+              <goal>generate</goal>
+              <!--<goal>build</goal>-->
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.fusesource.hawtjni</groupId>
+        <artifactId>hawtjni-maven-plugin</artifactId>
+        <version>1.18</version>
+        <executions>
+          <execution>
+            <id>build-native-lib</id>
+            <configuration>
+              <name>${jniLibName}-${project.version}</name>
               <nativeSourceDirectory>${generatedSourcesDir}</nativeSourceDirectory>
               <customPackageDirectory>${templateDir}</customPackageDirectory>
               <windowsBuildTool>msbuild</windowsBuildTool>
@@ -777,10 +891,23 @@
                 <configureArg>CFLAGS=${cflags}</configureArg>
                 <configureArg>LDFLAGS=${ldflags} ${extraLdflags}</configureArg>
                 <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+
+                <configureArg></configureArg>
+
+                <configureArg>TOOLCHAIN=${ndkToolchain}</configureArg>
+                <configureArg>TARGET=${androidTriple}</configureArg>
+                <configureArg>API=${androidMinSdkVersion}</configureArg>
+                <configureArg>AR=${ndkToolchain}/bin/${androidTriple}-ar</configureArg>
+                <configureArg>CC=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang</configureArg>
+                <configureArg>AS=${ndkToolchain}/bin/${androidTriple}-as</configureArg>
+                <configureArg>CXX=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang++</configureArg>
+                <configureArg>LD=${ndkToolchain}/bin/${androidTriple}-ld</configureArg>
+                <configureArg>RANLIB=${ndkToolchain}/bin/${androidTriple}-ranlib</configureArg>
+                <configureArg>STRIP=${ndkToolchain}/bin/${androidTriple}-strip</configureArg>
               </configureArgs>
             </configuration>
             <goals>
-              <goal>generate</goal>
+              <!--<goal>generate</goal>-->
               <goal>build</goal>
             </goals>
           </execution>
