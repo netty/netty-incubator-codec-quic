@@ -212,7 +212,7 @@
         <androidTriple>aarch64-linux-android</androidTriple>
         <quicheTarget>${androidAbi}</quicheTarget>
         <cargoTarget>--target=${quicheTarget}</cargoTarget>
-        <quicheBuildDir>${quicheSourceDir}/target/${androidTriple}/release</quicheBuildDir>
+        <quicheBuildDir>${quicheSourceDir}/target/${quicheTarget}/release</quicheBuildDir>
         <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
         <extraCxxflags>-O3 -fno-omit-frame-pointer</extraCxxflags>
         <!-- On *nix, add ASM flags to disable executable stack -->
@@ -623,6 +623,14 @@
                 <filter token="SSL_LIB" value="${libssl}" />
 
                 <copy file="src/main/native-package/vs2010.custom.props.template" tofile="${templateDir}/vs2010.custom.props" filtering="true" overwrite="true" verbose="true" />
+
+                <!-- Copy custom.m4 to fix building library without version-suffix on Android -->
+                <if>
+                  <equals arg1="${platform}" arg2="android" />
+                  <then>
+                    <copy file="src/main/native-package/m4/custom.m4.android.template" tofile="${templateDir}/m4/custom.m4" filtering="true" overwrite="true" verbose="true" />
+                  </then>
+                </if>
               </target>
             </configuration>
           </execution>
@@ -862,37 +870,12 @@
               <windowsCustomProps>true</windowsCustomProps>
               <windowsPlatformToolset>v140</windowsPlatformToolset>
               <libDirectory>${nativeLibOnlyDir}</libDirectory>
-            </configuration>
-            <goals>
-              <goal>generate</goal>
-              <!--<goal>build</goal>-->
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.fusesource.hawtjni</groupId>
-        <artifactId>hawtjni-maven-plugin</artifactId>
-        <version>1.18</version>
-        <executions>
-          <execution>
-            <id>build-native-lib</id>
-            <configuration>
-              <name>${jniLibName}-${project.version}</name>
-              <nativeSourceDirectory>${generatedSourcesDir}</nativeSourceDirectory>
-              <customPackageDirectory>${templateDir}</customPackageDirectory>
-              <windowsBuildTool>msbuild</windowsBuildTool>
-              <windowsCustomProps>true</windowsCustomProps>
-              <windowsPlatformToolset>v140</windowsPlatformToolset>
-              <libDirectory>${nativeLibOnlyDir}</libDirectory>
               <configureArgs>
                 <configureArg>${extraConfigureArg}</configureArg>
                 <configureArg>${extraConfigureArg2}</configureArg>
                 <configureArg>CFLAGS=${cflags}</configureArg>
                 <configureArg>LDFLAGS=${ldflags} ${extraLdflags}</configureArg>
                 <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
-
-                <configureArg></configureArg>
 
                 <configureArg>TOOLCHAIN=${ndkToolchain}</configureArg>
                 <configureArg>TARGET=${androidTriple}</configureArg>
@@ -907,7 +890,7 @@
               </configureArgs>
             </configuration>
             <goals>
-              <!--<goal>generate</goal>-->
+              <goal>generate</goal>
               <goal>build</goal>
             </goals>
           </execution>
