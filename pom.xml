@@ -26,7 +26,7 @@
   <artifactId>netty-incubator-codec-quic</artifactId>
   <version>0.0.16.Final-SNAPSHOT</version>
   <name>Netty/Incubator/Codec/Quic</name>
-  <packaging>jar</packaging>
+  <packaging>${packaging.type}</packaging>
   <url>https://netty.io/</url>
   <description>
     Netty is an asynchronous event-driven network application framework for
@@ -70,6 +70,7 @@
     <nativeSourceDirectory>${project.basedir}/src/main/c</nativeSourceDirectory>
     <nativeLibOnlyDir>${project.build.directory}/native-lib-only</nativeLibOnlyDir>
     <skipTests>false</skipTests>
+    <packaging.type>jar</packaging.type>
     <netty.version>4.1.65.Final</netty.version>
     <netty.build.version>29</netty.build.version>
     <junit.version>5.7.0</junit.version>
@@ -203,6 +204,7 @@
         </property>
       </activation>
       <properties>
+        <packaging.type>aar</packaging.type>
         <skipTests>true</skipTests>
         <platform>android</platform>
         <androidNdkVersion>21</androidNdkVersion>
@@ -212,7 +214,7 @@
         <androidTriple>aarch64-linux-android</androidTriple>
         <quicheTarget>${androidAbi}</quicheTarget>
         <cargoTarget>--target=${quicheTarget}</cargoTarget>
-        <quicheBuildDir>${quicheSourceDir}/target/${quicheTarget}/release</quicheBuildDir>
+        <quicheBuildDir>${quicheSourceDir}/target/${androidTriple}/release</quicheBuildDir>
         <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
         <extraCxxflags>-O3 -fno-omit-frame-pointer</extraCxxflags>
         <!-- On *nix, add ASM flags to disable executable stack -->
@@ -228,23 +230,118 @@
         <jniLibName>netty_quiche_${platform}-${quicheTarget}</jniLibName>
         <jni.classifier>${platform}-${quicheTarget}</jni.classifier>
         <cflags>-std=c99 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3 -I${quicheHomeIncludeDir} -I${boringsslHomeIncludeDir}</cflags>
-        <bundleNativeCode>META-INF/native/${jniLibName}.dll;osname=android;processor=${os.detected.arch}</bundleNativeCode> <!-- TODO -->
+        <bundleNativeCode>META-INF/native/${jniLibName}.dll;osname=android;processor=${androidAbi}</bundleNativeCode>
         <ndkToolchain>${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64</ndkToolchain>
         <extraLdflags>-Wl,-soname=${jniLibName}.so -Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
 
         <extraConfigureArg>--host=${androidTriple}</extraConfigureArg>
-
-        <!--<extraConfigureArg>${extraConfigureArg} TOOLCHAIN=${ndkToolchain}</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} TARGET=${androidTriple}</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} API=${androidMinSdkVersion}</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} AR=${ndkToolchain}/bin/${androidTriple}-ar</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} CC=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} AS=${ndkToolchain}/bin/${androidTriple}-as</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} CXX=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang++</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} LD=${ndkToolchain}/bin/${androidTriple}-ld</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} RANLIB=${ndkToolchain}/bin/${androidTriple}-ranlib</extraConfigureArg>
-        <extraConfigureArg>${extraConfigureArg} STRIP=${ndkToolchain}/bin/${androidTriple}-strip</extraConfigureArg>-->
       </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.fusesource.hawtjni</groupId>
+            <artifactId>hawtjni-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>generate-native-lib</id>
+                <configuration>
+                  <configureArgs>
+                    <configureArg>${extraConfigureArg}</configureArg>
+                    <configureArg>${extraConfigureArg2}</configureArg>
+                    <configureArg>CFLAGS=${cflags}</configureArg>
+                    <configureArg>LDFLAGS=${ldflags} ${extraLdflags}</configureArg>
+                    <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+
+                    <configureArg>TOOLCHAIN=${ndkToolchain}</configureArg>
+                    <configureArg>TARGET=${androidTriple}</configureArg>
+                    <configureArg>API=${androidMinSdkVersion}</configureArg>
+                    <configureArg>AR=${ndkToolchain}/bin/${androidTriple}-ar</configureArg>
+                    <configureArg>CC=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang</configureArg>
+                    <configureArg>AS=${ndkToolchain}/bin/${androidTriple}-as</configureArg>
+                    <configureArg>CXX=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang++</configureArg>
+                    <configureArg>LD=${ndkToolchain}/bin/${androidTriple}-ld</configureArg>
+                    <configureArg>RANLIB=${ndkToolchain}/bin/${androidTriple}-ranlib</configureArg>
+                    <configureArg>STRIP=${ndkToolchain}/bin/${androidTriple}-strip</configureArg>
+                  </configureArgs>
+                </configuration>
+                <goals>
+                  <goal>generate</goal>
+                  <goal>build</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <artifactId>maven-jar-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>native-jar</id>
+                <phase>none</phase>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>maven-bundle-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>generate-manifest</id>
+                <phase>none</phase>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <!-- Copy the native lib that was generated and the license material for attribution -->
+            <executions>
+              <execution>
+                <id>copy-android-native-lib</id>
+                <phase>initialize</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <!-- Add the ant tasks from ant-contrib -->
+                    <taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+
+                    <filter token="JAVA_MODULE_NAME" value="${javaModuleName}" />
+                    <filter token="MIN_SDK_VERSION" value="${androidMinSdkVersion}" />
+
+                    <copy file="src/main/AndroidManifest.xml" todir="${project.build.directory}/android-build/" filtering="true" />
+
+                  </target>
+                </configuration>
+              </execution>
+              <!-- Copy the native lib that was generated and the license material for attribution -->
+              <execution>
+                <id>copy-native-lib-and-license</id>
+                <phase>none</phase>
+              </execution>
+              <!-- Copy the native android lib that was generated and the license material for attribution -->
+              <execution>
+                <id>copy-android-native-libs</id>
+                <phase>process-test-resources</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <!-- Add the ant tasks from ant-contrib -->
+                    <taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+
+                    <copy todir="${project.build.directory}/android-build/native-libs" includeEmptyDirs="false">
+                      <zipfileset dir="${nativeLibOnlyDir}/META-INF/native" />
+                      <regexpmapper handledirsep="yes" from="^(?:[^/]+\/)*(.*_(.*).so)$" to="\2/\1" />
+                    </copy>
+
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>linux-aarch64</id>
@@ -876,17 +973,6 @@
                 <configureArg>CFLAGS=${cflags}</configureArg>
                 <configureArg>LDFLAGS=${ldflags} ${extraLdflags}</configureArg>
                 <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
-
-                <configureArg>TOOLCHAIN=${ndkToolchain}</configureArg>
-                <configureArg>TARGET=${androidTriple}</configureArg>
-                <configureArg>API=${androidMinSdkVersion}</configureArg>
-                <configureArg>AR=${ndkToolchain}/bin/${androidTriple}-ar</configureArg>
-                <configureArg>CC=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang</configureArg>
-                <configureArg>AS=${ndkToolchain}/bin/${androidTriple}-as</configureArg>
-                <configureArg>CXX=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang++</configureArg>
-                <configureArg>LD=${ndkToolchain}/bin/${androidTriple}-ld</configureArg>
-                <configureArg>RANLIB=${ndkToolchain}/bin/${androidTriple}-ranlib</configureArg>
-                <configureArg>STRIP=${ndkToolchain}/bin/${androidTriple}-strip</configureArg>
               </configureArgs>
             </configuration>
             <goals>
@@ -931,6 +1017,28 @@
               </archive>
               <classifier>${jni.classifier}</classifier>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.simpligility.maven.plugins</groupId>
+        <artifactId>android-maven-plugin</artifactId>
+        <version>4.6.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <sdk>
+            <platform>${androidMinSdkVersion}</platform>
+          </sdk>
+          <androidManifestFile>${project.build.directory}/android-build/AndroidManifest.xml</androidManifestFile>
+          <nativeLibrariesDirectory>${project.build.directory}/android-build/native-libs</nativeLibrariesDirectory>
+          <classesJarExcludes>
+            <exclude>META-INF</exclude>
+          </classesJarExcludes>
+          <classifier>${jni.classifier}</classifier>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
           </execution>
         </executions>
       </plugin>
