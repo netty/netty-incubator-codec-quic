@@ -239,13 +239,7 @@ final class QuicheQuicStreamChannel extends DefaultAttributeMap implements QuicS
     }
 
     private void shutdownOutput0(int error, ChannelPromise channelPromise) {
-        try {
-            parent().streamShutdownWrite(streamId(), error, channelPromise);
-        } catch (Throwable e) {
-            channelPromise.setFailure(e);
-            return;
-        }
-        channelPromise.setSuccess();
+        parent().streamShutdownWrite(streamId(), error, channelPromise);
         outputShutdown = true;
         closeIfDone();
     }
