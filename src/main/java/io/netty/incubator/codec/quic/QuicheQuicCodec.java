@@ -206,7 +206,9 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     @Override
     public final void flush(ChannelHandlerContext ctx) {
-        flushNow(ctx);
+        if (pendingBytes > 0) {
+            flushNow(ctx);
+        }
     }
 
     private void flushNow(ChannelHandlerContext ctx) {

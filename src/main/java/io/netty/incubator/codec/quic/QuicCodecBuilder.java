@@ -94,7 +94,6 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
      * Sets the max number of bytes that were written before we force a flush of the data. While batching more bytes may
      * help to reduce syscalls it may also make the latency worse. Only adjust the setting if you really know what you
      * are doing.
-
      *
      * @param maxBytesBeforeFlush   the maximum number of bytes before a flush will be forced.
      * @return                      the instance itself.
