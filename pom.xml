@@ -817,12 +817,21 @@
       <artifactId>netty-transport</artifactId>
       <version>${netty.version}</version>
     </dependency>
+    <!-- Lets add this as optional dependency so users can include it for GSO support -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <version>${netty.version}</version>
+      <optional>true</optional>
+    </dependency>
+
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-transport-native-epoll</artifactId>
       <version>${netty.version}</version>
       <classifier>linux-x86_64</classifier>
       <scope>test</scope>
+      <optional>false</optional>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

@@ -18,15 +18,20 @@ package io.netty.incubator.codec.quic;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.epoll.SegmentedDatagramPacket;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.internal.ObjectUtil;
 
 import java.net.InetSocketAddress;
 
+/**
+ * {@link SegmentedDatagramPacketAllocator} for epoll. It's important that we only access this class if we are sure
+ * that the user actually has the epoll classes on the classpath.
+ */
 final class EpollSegmentedDatagramPacketAllocator implements SegmentedDatagramPacketAllocator {
 
     private final int maxNumSegments;
 
     EpollSegmentedDatagramPacketAllocator(int maxNumSegments) {
-        this.maxNumSegments = maxNumSegments;
+        this.maxNumSegments = ObjectUtil.checkPositive(maxNumSegments, "maxNumSegments");
     }
 
     @Override

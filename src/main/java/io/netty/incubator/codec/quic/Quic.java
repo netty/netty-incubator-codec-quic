@@ -36,6 +36,8 @@ public final class Quic {
 
     private static final Throwable UNAVAILABILITY_CAUSE;
 
+    private static final Class<?> EPOLL_DATAGRAM_CHANNEL_CLASS;
+
     static {
         Throwable cause = null;
 
@@ -47,6 +49,15 @@ public final class Quic {
         }
 
         UNAVAILABILITY_CAUSE = cause;
+
+        Class<?> epollDatagramChannelClass;
+        try {
+            epollDatagramChannelClass = io.netty.channel.epoll.EpollDatagramChannel.class;
+        } catch (Throwable ignore) {
+            // epoll native transport is not on the classpath.
+            epollDatagramChannelClass = null;
+        }
+        EPOLL_DATAGRAM_CHANNEL_CLASS = epollDatagramChannelClass;
     }
 
     /**
@@ -77,6 +88,34 @@ public final class Quic {
      */
     public static Throwable unavailabilityCause() {
         return UNAVAILABILITY_CAUSE;
+    }
+
+    /**
+     * Return a {@link SegmentedDatagramPacketAllocator} that is compatible with the given {@link Channel}.
+     *
+     * @param channel   the channel type to use.
+     * @return          the allocator that can be used with the channel to configure a {@link QuicCodecBuilder}.
+     */
+    public static SegmentedDatagramPacketAllocator newSegmentedAllocator(Class<? extends Channel> channel) {
+        return newSegmentedAllocator(channel, 10);
+    }
+
+    /**
+     * Return a {@link SegmentedDatagramPacketAllocator} that is compatible with the given {@link Channel}.
+     * @param channel       the channel type to use.
+     * @param maxNumPackets the maximum number of segmented packets to send in one go.
+     * @return              the allocator that can be used with the channel to configure a {@link QuicCodecBuilder}.
+     */
+    public static SegmentedDatagramPacketAllocator newSegmentedAllocator(
+            Class<? extends Channel> channel, int maxNumPackets) {
+        ObjectUtil.checkPositive(maxNumPackets, "maxNumPackets");
+        if (EPOLL_DATAGRAM_CHANNEL_CLASS != null && EPOLL_DATAGRAM_CHANNEL_CLASS.isAssignableFrom(channel) &&
+                // If EPOLL_DATAGRAM_CHANNEL_CLASS is assignable we know that the user has the right classes on the
+                // classpath.
+                EpollSegmentedDatagramPacketAllocator.isSupported()) {
+            return new EpollSegmentedDatagramPacketAllocator(maxNumPackets);
+        }
+        return SegmentedDatagramPacketAllocator.NONE;
     }
 
     static Map.Entry<ChannelOption<?>, Object>[] toOptionsArray(Map<ChannelOption<?>, Object> opts) {

@@ -22,16 +22,24 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollDatagramChannel;
+import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ChannelInputShutdownReadComplete;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.incubator.codec.quic.Quic;
 import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.incubator.codec.quic.QuicChannelOption;
 import io.netty.incubator.codec.quic.QuicClientCodecBuilder;
 import io.netty.incubator.codec.quic.QuicSslContext;
 import io.netty.incubator.codec.quic.QuicSslContextBuilder;
 import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.incubator.codec.quic.QuicStreamType;
+import io.netty.incubator.codec.quic.SegmentedDatagramPacketAllocator;
 import io.netty.util.CharsetUtil;
 import io.netty.util.NetUtil;
 
@@ -45,24 +53,36 @@ public final class QuicClientExample {
     public static void main(String[] args) throws Exception {
         QuicSslContext context = QuicSslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).
                 applicationProtocols("http/0.9").build();
-        NioEventLoopGroup group = new NioEventLoopGroup(1);
+        ChannelHandler codec = new QuicClientCodecBuilder()
+                .sslContext(context)
+                .maxIdleTimeout(5000, TimeUnit.MILLISECONDS)
+                .initialMaxData(10000000)
+                // As we don't want to support remote initiated streams just setup the limit for local initiated
+                // streams in this example.
+                .initialMaxStreamDataBidirectionalLocal(1000000)
+                .build();
+
+        EventLoopGroup group = null;
+        Class<? extends DatagramChannel> channelType;
         try {
-            ChannelHandler codec = new QuicClientCodecBuilder()
-                    .sslContext(context)
-                    .maxIdleTimeout(5000, TimeUnit.MILLISECONDS)
-                    .initialMaxData(10000000)
-                    // As we don't want to support remote initiated streams just setup the limit for local initiated
-                    // streams in this example.
-                    .initialMaxStreamDataBidirectionalLocal(1000000)
-                    .build();
+            if (Epoll.isAvailable()) {
+                group = new EpollEventLoopGroup(1);
+                channelType = EpollDatagramChannel.class;
+            } else {
+                group = new NioEventLoopGroup(1);
+                channelType = NioDatagramChannel.class;
+            }
+            // Use GSO if possible.
+            final SegmentedDatagramPacketAllocator segmentedAllocator = Quic.newSegmentedAllocator(channelType);
 
             Bootstrap bs = new Bootstrap();
             Channel channel = bs.group(group)
-                    .channel(NioDatagramChannel.class)
+                    .channel(channelType)
                     .handler(codec)
                     .bind(0).sync().channel();
 
             QuicChannel quicChannel = QuicChannel.newBootstrap(channel)
+                    .option(QuicChannelOption.SEGMENTED_DATAGRAM_PACKET_ALLOCATOR, segmentedAllocator)
                     .streamHandler(new ChannelInboundHandlerAdapter() {
                         @Override
                         public void channelActive(ChannelHandlerContext ctx) {
@@ -105,7 +125,9 @@ public final class QuicClientExample {
             quicChannel.closeFuture().sync();
             channel.close().sync();
         } finally {
-            group.shutdownGracefully();
+            if (group != null) {
+                group.shutdownGracefully();
+            }
         }
     }
 }
