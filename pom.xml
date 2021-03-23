@@ -210,11 +210,14 @@
         <androidNdkVersion>21</androidNdkVersion>
         <androidMinSdkVersion>21</androidMinSdkVersion>
         <!-- https://developer.android.com/ndk/guides/other_build_systems -->
-        <androidAbi>arm64-v8a</androidAbi>
-        <androidTriple>aarch64-linux-android</androidTriple>
-        <quicheTarget>${androidAbi}</quicheTarget>
+        <!-- https://github.com/android/ndk/issues/1324 -->
+        <androidAbi>armeabi-v7a</androidAbi>
+        <androidTriple>armv7a-linux-androideabi</androidTriple>
+        <androidTriple2>arm-linux-androideabi</androidTriple2>
+        <quicheTarget>armv7-linux-androideabi</quicheTarget>
         <cargoTarget>--target=${quicheTarget}</cargoTarget>
-        <quicheBuildDir>${quicheSourceDir}/target/${androidTriple}/release</quicheBuildDir>
+        <nativeLibOnlyDir>${project.build.directory}/native-lib-only/${androidAbi}</nativeLibOnlyDir>
+        <quicheBuildDir>${quicheSourceDir}/target/${quicheTarget}/release</quicheBuildDir>
         <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
         <extraCxxflags>-O3 -fno-omit-frame-pointer</extraCxxflags>
         <!-- On *nix, add ASM flags to disable executable stack -->
@@ -227,14 +230,19 @@
         <libquiche>libquiche.a</libquiche>
 
         <!-- https://developer.android.com/ndk/guides/other_build_systems -->
-        <jniLibName>netty_quiche_${platform}-${quicheTarget}</jniLibName>
-        <jni.classifier>${platform}-${quicheTarget}</jni.classifier>
+        <jniLibName>netty_quiche</jniLibName>
+        <jni.classifier>${platform}</jni.classifier>
         <cflags>-std=c99 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3 -I${quicheHomeIncludeDir} -I${boringsslHomeIncludeDir}</cflags>
         <bundleNativeCode>META-INF/native/${jniLibName}.dll;osname=android;processor=${androidAbi}</bundleNativeCode>
         <ndkToolchain>${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64</ndkToolchain>
         <extraLdflags>-Wl,-soname=${jniLibName}.so -Wl,--strip-debug -Wl,--exclude-libs,ALL -lm</extraLdflags>
 
         <extraConfigureArg>--host=${androidTriple}</extraConfigureArg>
+
+        <boringsslBuildDir>${boringsslSourceDir}/build/${androidAbi}</boringsslBuildDir>
+        <boringsslHomeDir>${project.build.directory}/boringssl/${androidAbi}</boringsslHomeDir>
+        <quicheHomeDir>${project.build.directory}/quiche/${androidAbi}</quicheHomeDir>
+        <hawtjniBuildDir>${project.build.directory}/native-build/${androidAbi}</hawtjniBuildDir>
       </properties>
       <build>
         <plugins>
@@ -250,19 +258,20 @@
                     <configureArg>${extraConfigureArg2}</configureArg>
                     <configureArg>CFLAGS=${cflags}</configureArg>
                     <configureArg>LDFLAGS=${ldflags} ${extraLdflags}</configureArg>
-                    <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+                    <configureArg>--libdir=${hawtjniBuildDir}/native-build/target/lib</configureArg>
 
                     <configureArg>TOOLCHAIN=${ndkToolchain}</configureArg>
                     <configureArg>TARGET=${androidTriple}</configureArg>
                     <configureArg>API=${androidMinSdkVersion}</configureArg>
-                    <configureArg>AR=${ndkToolchain}/bin/${androidTriple}-ar</configureArg>
+                    <configureArg>AR=${ndkToolchain}/bin/${androidTriple2}-ar</configureArg>
                     <configureArg>CC=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang</configureArg>
-                    <configureArg>AS=${ndkToolchain}/bin/${androidTriple}-as</configureArg>
+                    <configureArg>AS=${ndkToolchain}/bin/${androidTriple2}-as</configureArg>
                     <configureArg>CXX=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang++</configureArg>
-                    <configureArg>LD=${ndkToolchain}/bin/${androidTriple}-ld</configureArg>
-                    <configureArg>RANLIB=${ndkToolchain}/bin/${androidTriple}-ranlib</configureArg>
-                    <configureArg>STRIP=${ndkToolchain}/bin/${androidTriple}-strip</configureArg>
+                    <configureArg>LD=${ndkToolchain}/bin/${androidTriple2}-ld</configureArg>
+                    <configureArg>RANLIB=${ndkToolchain}/bin/${androidTriple2}-ranlib</configureArg>
+                    <configureArg>STRIP=${ndkToolchain}/bin/${androidTriple2}-strip</configureArg>
                   </configureArgs>
+                  <buildDirectory>${hawtjniBuildDir}</buildDirectory>
                 </configuration>
                 <goals>
                   <goal>generate</goal>
@@ -330,9 +339,9 @@
                     <!-- Add the ant tasks from ant-contrib -->
                     <taskdef resource="net/sf/antcontrib/antcontrib.properties" />
 
-                    <copy todir="${project.build.directory}/android-build/native-libs" includeEmptyDirs="false">
+                    <copy todir="${project.build.directory}/android-build/native-libs/${androidAbi}" includeEmptyDirs="false">
                       <zipfileset dir="${nativeLibOnlyDir}/META-INF/native" />
-                      <regexpmapper handledirsep="yes" from="^(?:[^/]+\/)*(.*_(.*).so)$" to="\2/\1" />
+                      <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="\1" />
                     </copy>
 
                   </target>
@@ -504,7 +513,7 @@
                       <then>
                         <!-- https://boringssl.googlesource.com/boringssl/+/HEAD/BUILDING.md#building-for-android -->
                         <exec executable="cmake" failonerror="true" dir="${boringsslBuildDir}" resolveexecutable="true">
-                          <arg value="-DANDROID_ABI=${quicheTarget}" />
+                          <arg value="-DANDROID_ABI=${androidAbi}" />
                           <arg value="-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" />
                           <arg value="-DANDROID_NATIVE_API_LEVEL=${androidNdkVersion}" />
                           <arg value="-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE" />
@@ -607,7 +616,7 @@
                       <equals arg1="${platform}" arg2="android" />
                       <then>
                         <exec executable="cargo" failonerror="true" dir="${quicheSourceDir}" resolveexecutable="true">
-                          <arg line='ndk ${cargoTarget} -p ${androidNdkVersion} -- build --features "ffi qlog" --release' />
+                          <arg line="ndk ${cargoTarget} -p ${androidNdkVersion} -- build --features &quot;ffi qlog&quot; --release" />
                           <env key="CFLAGS" value="${extraCflags}" />
                           <env key="CXXFLAGS" value="${extraCxxflags}" />
                           <env key="QUICHE_BSSL_PATH" value="${boringsslHomeDir}/" />
