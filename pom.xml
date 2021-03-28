@@ -194,6 +194,52 @@
       </properties>
     </profile>
     <profile>
+      <id>android-armeabi-v7a</id>
+      <activation>
+        <os>
+          <family>linux</family>
+        </os>
+        <property>
+          <name>android</name>
+        </property>
+      </activation>
+      <properties>
+        <!-- https://developer.android.com/ndk/guides/other_build_systems -->
+        <!-- https://github.com/android/ndk/issues/1324 -->
+        <androidAbi>armeabi-v7a</androidAbi>
+        <androidTriple>armv7a-linux-androideabi</androidTriple>
+        <androidTriple2>arm-linux-androideabi</androidTriple2>
+        <quicheTarget>armv7-linux-androideabi</quicheTarget>
+      </properties>
+    </profile>
+    <profile>
+      <id>android-arm64-v8a</id>
+      <properties>
+        <androidAbi>arm64-v8a</androidAbi>
+        <androidTriple>aarch64-linux-android</androidTriple>
+        <androidTriple2>aarch64-linux-android</androidTriple2>
+        <quicheTarget>aarch64-linux-android</quicheTarget>
+      </properties>
+    </profile>
+    <profile>
+      <id>android-x86</id>
+      <properties>
+        <androidAbi>x86</androidAbi>
+        <androidTriple>i686-linux-android</androidTriple>
+        <androidTriple2>i686-linux-android</androidTriple2>
+        <quicheTarget>i686-linux-android</quicheTarget>
+      </properties>
+    </profile>
+    <profile>
+      <id>android-x86_64</id>
+      <properties>
+        <androidAbi>x86_64</androidAbi>
+        <androidTriple>x86_64-linux-android</androidTriple>
+        <androidTriple2>x86_64-linux-android</androidTriple2>
+        <quicheTarget>x86_64-linux-android</quicheTarget>
+      </properties>
+    </profile>
+    <profile>
       <id>android</id>
       <activation>
         <os>
@@ -209,13 +255,8 @@
         <platform>android</platform>
         <androidNdkVersion>21</androidNdkVersion>
         <androidMinSdkVersion>21</androidMinSdkVersion>
-        <!-- https://developer.android.com/ndk/guides/other_build_systems -->
-        <!-- https://github.com/android/ndk/issues/1324 -->
-        <androidAbi>armeabi-v7a</androidAbi>
-        <androidTriple>armv7a-linux-androideabi</androidTriple>
-        <androidTriple2>arm-linux-androideabi</androidTriple2>
-        <quicheTarget>armv7-linux-androideabi</quicheTarget>
         <cargoTarget>--target=${quicheTarget}</cargoTarget>
+        <skipIteration>false</skipIteration>
         <nativeLibOnlyDir>${project.build.directory}/native-lib-only/${androidAbi}</nativeLibOnlyDir>
         <quicheBuildDir>${quicheSourceDir}/target/${quicheTarget}/release</quicheBuildDir>
         <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
@@ -246,6 +287,49 @@
       </properties>
       <build>
         <plugins>
+          <plugin>
+            <groupId>com.soebes.maven.plugins</groupId>
+            <artifactId>iterator-maven-plugin</artifactId>
+            <!-- Don't use 0.5.1, it contains a change that merges all properties, 
+              and therefore doesn't re-evaluates "nested" properties (e.g. cargoTarget, which uses ${quicheTarget}).
+              Keep this version or provide a fix to disable merging of properties in iterator-maven-plugin -->
+            <version>0.5.0</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>invoker</goal>
+                </goals>
+                <configuration>
+                  <itemsWithProperties>
+                    <itemWithProperty>
+                      <name>arm64-v8a</name>
+                      <properties>
+                        <skipIteration>true</skipIteration>
+                      </properties>
+                    </itemWithProperty>
+                    <itemWithProperty>
+                      <name>x86</name>
+                      <properties>
+                        <skipIteration>true</skipIteration>
+                      </properties>
+                    </itemWithProperty>
+                    <itemWithProperty>
+                      <name>x86_64</name>
+                      <properties>
+                        <skipIteration>true</skipIteration>
+                      </properties>
+                    </itemWithProperty>
+                  </itemsWithProperties>
+                  <goals>
+                    <goal>package</goal>
+                  </goals>
+                  <profiles>android-@item@,android</profiles>
+                  <skip>${skipIteration}</skip>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
           <plugin>
             <groupId>org.fusesource.hawtjni</groupId>
             <artifactId>hawtjni-maven-plugin</artifactId>
