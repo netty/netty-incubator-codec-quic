@@ -51,6 +51,8 @@ import java.nio.channels.AlreadyConnectedException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ConnectionPendingException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ScheduledFuture;
@@ -874,20 +876,19 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     private boolean connectionSendSegments(SegmentedDatagramPacketAllocator segmentedDatagramPacketAllocator) {
-        final int bufferSize = segmentedDatagramPacketAllocator.maxNumSegments() * Quic.MAX_DATAGRAM_SIZE;
-
+        List<ByteBuf> buffers = new ArrayList<>(segmentedDatagramPacketAllocator.maxNumSegments());
         long connAddr = connection.address();
         boolean packetWasWritten = false;
-        int numSegments = 0;
 
-        ByteBuf out = alloc().directBuffer(bufferSize);
         int lastWritten = -1;
         for (;;) {
             boolean done;
+            ByteBuf out = alloc().directBuffer(Quic.MAX_DATAGRAM_SIZE);
             int writerIndex = out.writerIndex();
             int written = Quiche.quiche_conn_send(
                     connAddr, Quiche.memoryAddress(out) + writerIndex, out.writableBytes());
             if (written == 0) {
+                out.release();
                 // No need to create a new datagram packet. Just try again.
                 continue;
             }
@@ -898,68 +899,65 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 done = true;
                 pipeline().fireExceptionCaught(e);
             }
+
             if (done) {
+                // Release buffer as we were not able wo write anything into it.
+                out.release();
+
                 // We need to write what we have build up so far before we break out of the loop or release the buffer
                 // if nothing is contained in there.
-                int readable = out.readableBytes();
-                if (readable != 0) {
-                    if (lastWritten != -1 && readable > lastWritten) {
-                        parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
-                    } else {
-                        parent().write(new DatagramPacket(out, remote));
-                    }
+                if (!buffers.isEmpty()) {
+                    writeAndClear(segmentedDatagramPacketAllocator, buffers, lastWritten);
                     packetWasWritten = true;
-                } else {
-                    out.release();
                 }
                 break;
             }
 
+            out.writerIndex(writerIndex + written);
             if (written < lastWritten) {
+                buffers.add(out);
                 // The write was smaller then the write before. This means we can write all together as the
                 // last segment can be smaller then the other segments.
-                out.writerIndex(writerIndex + written);
-                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
+                writeAndClear(segmentedDatagramPacketAllocator, buffers, lastWritten);
                 packetWasWritten = true;
 
-                out = alloc().directBuffer(bufferSize);
                 lastWritten = -1;
-                numSegments = 0;
                 continue;
             }
 
-            if (lastWritten != -1 && lastWritten != written)  {
-                ByteBuf newOut = alloc().directBuffer(bufferSize);
-                newOut.writeBytes(out, out.writerIndex(), written);
-
+            if (lastWritten != -1 && lastWritten != written) {
                 // As the last write was smaller then this write we first need to write what we had before as
                 // a segment can never be bigger then the previous segment. After this we will try to build a new
                 // chain of segments for the writes to follow.
-                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
+                writeAndClear(segmentedDatagramPacketAllocator, buffers, lastWritten);
                 packetWasWritten = true;
-
-                out = newOut;
-                lastWritten = written;
-                numSegments = 0;
-            } else {
-                out.writerIndex(writerIndex + written);
-                lastWritten = written;
-                numSegments++;
             }
+
+            lastWritten = written;
+            buffers.add(out);
 
             // check if we either built the maximum number of segments for a write or if the ByteBuf is not writable
             // anymore. In this case lets write what we have and start a new chain of segments.
-            if (numSegments == segmentedDatagramPacketAllocator.maxNumSegments() ||
-                    !out.isWritable()) {
-                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
+            if (buffers.size() == segmentedDatagramPacketAllocator.maxNumSegments()) {
+                writeAndClear(segmentedDatagramPacketAllocator, buffers, lastWritten);
                 packetWasWritten = true;
 
-                out = alloc().directBuffer(bufferSize);
-                numSegments = 0;
                 lastWritten = -1;
             }
         }
         return packetWasWritten;
+    }
+
+    private void writeAndClear(SegmentedDatagramPacketAllocator segmentedDatagramPacketAllocator,
+                               List<ByteBuf> buffers, int segmentSize) {
+        if (segmentSize > 0) {
+            parent().write(segmentedDatagramPacketAllocator.newPacket(
+                    Unpooled.wrappedUnmodifiableBuffer(buffers.toArray(new ByteBuf[0])), segmentSize, remote));
+        } else {
+            parent().write(new DatagramPacket(Unpooled.wrappedUnmodifiableBuffer(
+                    buffers.toArray(new ByteBuf[0])), remote));
+        }
+        buffers.clear();
     }
 
     private boolean connectionSendSimple() {
