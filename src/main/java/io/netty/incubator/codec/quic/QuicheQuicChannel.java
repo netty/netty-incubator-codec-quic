@@ -816,7 +816,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                                     if (capacity == Quiche.QUICHE_ERR_STREAM_STOPPED) {
                                         // Streams that received STOP_SENDING and no longer writable
                                         // but should be not closed.
-                                        break;
+                                        continue;
                                     }
                                     if (!Quiche.quiche_conn_stream_finished(connAddr, streamId)) {
                                         // Only fire an exception if the error was not caused because the stream is
