@@ -67,8 +67,6 @@ final class QuicheQuicStreamChannel extends DefaultAttributeMap implements QuicS
     private boolean inWriteQueued;
     private boolean finReceived;
     private boolean finSent;
-    private boolean strValActive;
-    private String strVal;
 
     private volatile boolean registered;
     private volatile boolean writable = true;
@@ -388,42 +386,7 @@ final class QuicheQuicStreamChannel extends DefaultAttributeMap implements QuicS
 
     @Override
     public String toString() {
-        boolean active = isActive();
-        if (strValActive == active && strVal != null) {
-            return strVal;
-        }
-
-        SocketAddress remoteAddr = remoteAddress();
-        SocketAddress localAddr = localAddress();
-        if (remoteAddr != null) {
-            StringBuilder buf = new StringBuilder(96)
-                    .append("[id: 0x")
-                    .append(id.asShortText())
-                    .append(", L:")
-                    .append(localAddr)
-                    .append(active? " - " : " ! ")
-                    .append("R:")
-                    .append(remoteAddr)
-                    .append(']');
-            strVal = buf.toString();
-        } else if (localAddr != null) {
-            StringBuilder buf = new StringBuilder(64)
-                    .append("[id: 0x")
-                    .append(id.asShortText())
-                    .append(", L:")
-                    .append(localAddr)
-                    .append(']');
-            strVal = buf.toString();
-        } else {
-            StringBuilder buf = new StringBuilder(16)
-                    .append("[id: 0x")
-                    .append(id.asShortText())
-                    .append(']');
-            strVal = buf.toString();
-        }
-
-        strValActive = active;
-        return strVal;
+        return "[id: 0x" + id.asShortText() + ", " + address + "]";
     }
 
     /**
