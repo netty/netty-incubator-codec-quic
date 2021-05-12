@@ -181,10 +181,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     @Override
     public SSLEngine sslEngine() {
         QuicheQuicConnection connection = this.connection;
-        if (connection == null) {
-            return null;
-        }
-        return connection.engine();
+        return connection == null ? null : connection.engine();
     }
 
     @Override
