@@ -30,8 +30,6 @@ final class QuicheQuicConnection {
         this.refCnt = refCnt;
     }
 
-    // This should not need to be synchronized as it will either be called from the EventLoop thread or
-    // the finalizer (in which case there can't be concurrent access here).
     void free() {
         boolean release = false;
         synchronized (this) {
