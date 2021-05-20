@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.quic;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCounted;
 
 import java.util.function.Supplier;
@@ -23,11 +24,16 @@ final class QuicheQuicConnection {
     private final ReferenceCounted refCnt;
     private final QuicheQuicSslEngine engine;
     private long connection;
+    private final ByteBuf recvInfo;
+    private final ByteBuf sendInfo;
 
     QuicheQuicConnection(long connection, QuicheQuicSslEngine engine, ReferenceCounted refCnt) {
         this.connection = connection;
         this.engine = engine;
         this.refCnt = refCnt;
+        // TODO: Maybe cache these per thread as we only use them temporary within a limited scope.
+        recvInfo = Quiche.allocateNativeOrder(Quiche.SIZEOF_QUICHE_RECV_INFO + Quiche.SIZEOF_SOCKADDR_STORAGE);
+        sendInfo = Quiche.allocateNativeOrder(Quiche.SIZEOF_QUICHE_SEND_INFO);
     }
 
     void free() {
@@ -44,6 +50,8 @@ final class QuicheQuicConnection {
         }
         if (release) {
             refCnt.release();
+            recvInfo.release();
+            sendInfo.release();
         }
     }
 
@@ -73,6 +81,14 @@ final class QuicheQuicConnection {
     long address() {
         assert connection != -1;
         return connection;
+    }
+
+    long recvInfoAddress() {
+        return recvInfo.memoryAddress();
+    }
+
+    long sendInfoAddress() {
+        return sendInfo.memoryAddress();
     }
 
     boolean isClosed() {
