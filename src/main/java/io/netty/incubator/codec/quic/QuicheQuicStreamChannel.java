@@ -396,6 +396,7 @@ final class QuicheQuicStreamChannel extends DefaultAttributeMap implements QuicS
         assert eventLoop().inEventLoop();
         this.capacity = capacity;
         boolean mayNeedWrite = ((QuicStreamChannelUnsafe) unsafe()).writeQueued();
+        // we need to re-read this.capacity as writeQueued() may update the capacity.
         updateWritabilityIfNeeded(this.capacity > 0);
         return mayNeedWrite;
     }
