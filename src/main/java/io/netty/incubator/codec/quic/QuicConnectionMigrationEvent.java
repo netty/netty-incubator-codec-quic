@@ -35,7 +35,7 @@ public final class QuicConnectionMigrationEvent implements QuicEvent {
      *
      * @return the old {@link SocketAddress} of the connection.
      */
-    SocketAddress from() {
+    public SocketAddress from() {
         return from;
     }
 
@@ -44,7 +44,7 @@ public final class QuicConnectionMigrationEvent implements QuicEvent {
      *
      * @return the new {@link SocketAddress} of the connection.
      */
-    SocketAddress to() {
+    public SocketAddress to() {
         return to;
     }
 }
