@@ -890,7 +890,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
             boolean done;
             int writerIndex = out.writerIndex();
-            // TODO: Fix info!
             int written = Quiche.quiche_conn_send(
                     connAddr, Quiche.memoryAddress(out) + writerIndex, out.writableBytes(), sendInfo);
             if (written == 0) {
@@ -1044,7 +1043,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             SegmentedDatagramPacketAllocator segmentedDatagramPacketAllocator =
                     config.getSegmentedDatagramPacketAllocator();
             if (segmentedDatagramPacketAllocator.maxNumSegments() > 0) {
-                packetWasWritten = connectionSendSegments(segmentedDatagramPacketAllocator);
+                packetWasWritten = connectionSendSimple(); // connectionSendSegments(segmentedDatagramPacketAllocator);
             } else {
                 packetWasWritten = connectionSendSimple();
             }
