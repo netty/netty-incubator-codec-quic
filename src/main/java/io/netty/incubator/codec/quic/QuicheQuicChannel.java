@@ -108,11 +108,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private final Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray;
     private final Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray;
     private final TimeoutHandler timeoutHandler = new TimeoutHandler();
-    private final InetSocketAddress remote;
 
-    private volatile QuicheQuicConnection connection;
-    private volatile QuicConnectionAddress remoteIdAddr;
-    private volatile QuicConnectionAddress localIdAdrr;
     private boolean inFireChannelReadCompleteQueue;
     private boolean fireChannelReadCompletePending;
     private ByteBuf finBuffer;
@@ -123,6 +119,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private CloseData closeData;
     private QuicConnectionStats statsAtClose;
 
+    private long currentRecvInfoAddress;
+    private long currentSendInfoAddress;
+    private InetSocketAddress remote;
     private boolean supportsDatagram;
     private boolean recvDatagramPending;
     private boolean datagramReadable;
@@ -138,11 +137,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private static final int ACTIVE = 2;
     private volatile int state;
     private volatile String traceId;
-
-    private long currentRecvInfoAddress;
-    private long currentSendInfoAddress;
-    private InetSocketAddress recvFromAddress;
-    private InetSocketAddress sendToAddress;
+    private volatile QuicheQuicConnection connection;
+    private volatile QuicConnectionAddress remoteIdAddr;
+    private volatile QuicConnectionAddress localIdAdrr;
 
     private static final AtomicLongFieldUpdater<QuicheQuicChannel> UNI_STREAMS_LEFT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(QuicheQuicChannel.class, "uniStreamsLeft");
@@ -880,13 +877,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private boolean updateSendToAddressIfNeeded(long oldSendInfo, long sendInfo) {
         boolean addressChanged = false;
-        if (sendToAddress != null) {
+        if (remote != null) {
             if (!QuicheSendInfo.isSockAddrSame(oldSendInfo, sendInfo)) {
-                sendToAddress = QuicheSendInfo.read(sendInfo);
+                remote = QuicheSendInfo.read(sendInfo);
                 addressChanged = true;
             }
         } else {
-            sendToAddress = QuicheSendInfo.read(sendInfo);
+            remote = QuicheSendInfo.read(sendInfo);
         }
         return addressChanged;
     }
@@ -903,7 +900,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         for (;;) {
             long sendInfo = connection.nextSendInfoAddress(currentSendInfoAddress);
             // Store this so we can send of a segment if needed.
-            InetSocketAddress to = sendToAddress;
+            InetSocketAddress to = remote;
 
             boolean done;
             int writerIndex = out.writerIndex();
@@ -930,9 +927,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 if (readable != 0) {
                     try {
                         if (lastWritten != -1 && readable > lastWritten) {
-                            parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, sendToAddress));
+                            parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
                         } else {
-                            parent().write(new DatagramPacket(out, sendToAddress));
+                            parent().write(new DatagramPacket(out, remote));
                         }
                     } finally {
                         // Update the cached address.
@@ -1020,13 +1017,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 continue;
             }
             try {
-                InetSocketAddress oldSendToAddress = sendToAddress;
+                InetSocketAddress oldSendToAddress = remote;
                 if (updateSendToAddressIfNeeded(currentSendInfoAddress, sendInfo)) {
                     pipeline().fireUserEventTriggered(
-                            new QuicConnectionMigrationEvent(oldSendToAddress, sendToAddress));
+                            new QuicConnectionMigrationEvent(oldSendToAddress, remote));
                 }
                 out.writerIndex(writerIndex + written);
-                parent().write(new DatagramPacket(out, sendToAddress));
+                parent().write(new DatagramPacket(out, remote));
                 packetWasWritten = true;
             } finally {
                 // Update the cached address.
@@ -1175,8 +1172,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 long recvInfoAddress = connection.nextRecvInfoAddress(currentRecvInfoAddress);
                 QuicheRecvInfo.write(recvInfoAddress, sender);
 
-                SocketAddress oldSender = recvFromAddress;
-                recvFromAddress = sender;
+                SocketAddress oldSender = remote;
+                remote = sender;
                 if (oldSender != null) {
                     if (!QuicheRecvInfo.isSockAddrSame(recvInfoAddress, currentRecvInfoAddress)) {
                         pipeline().fireUserEventTriggered(
