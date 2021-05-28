@@ -141,6 +141,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private long currentRecvInfoAddress;
     private long currentSendInfoAddress;
+    private InetSocketAddress recvFromAddress;
     private InetSocketAddress sendToAddress;
 
     private static final AtomicLongFieldUpdater<QuicheQuicChannel> UNI_STREAMS_LEFT_UPDATER =
@@ -1019,9 +1020,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 continue;
             }
             try {
+                InetSocketAddress oldSendToAddress = sendToAddress;
                 if (updateSendToAddressIfNeeded(currentSendInfoAddress, sendInfo)) {
-                    // TODO:
-                    //  - Do something when peer changes (like firing an event or so).
+                    pipeline().fireUserEventTriggered(
+                            new QuicConnectionMigrationEvent(oldSendToAddress, sendToAddress));
                 }
                 out.writerIndex(writerIndex + written);
                 parent().write(new DatagramPacket(out, sendToAddress));
@@ -1173,8 +1175,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 long recvInfoAddress = connection.nextRecvInfoAddress(currentRecvInfoAddress);
                 QuicheRecvInfo.write(recvInfoAddress, sender);
 
-                if (!QuicheRecvInfo.isSockAddrSame(recvInfoAddress, currentRecvInfoAddress)) {
-                    // TODO: Should we fire something here ?
+                SocketAddress oldSender = recvFromAddress;
+                recvFromAddress = sender;
+                if (oldSender != null) {
+                    if (!QuicheRecvInfo.isSockAddrSame(recvInfoAddress, currentRecvInfoAddress)) {
+                        pipeline().fireUserEventTriggered(
+                                new QuicConnectionMigrationEvent(oldSender, sender));
+                    }
                 }
 
                 long connAddr = connection.address();
