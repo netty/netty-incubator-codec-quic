@@ -100,6 +100,14 @@ final class QuicheQuicConnection {
         QuicheSendInfo.write(sendInfosAddress + Quiche.SIZEOF_QUICHE_SEND_INFO, address);
     }
 
+    long recvInfoAddress() {
+        return infoBuffer.memoryAddress();
+    }
+
+    long sendInfoAddress() {
+        return sendInfosAddress();
+    }
+
     long nextRecvInfoAddress(long previousRecvInfoAddress) {
         long memoryAddress = infoBuffer.memoryAddress();
         if (memoryAddress == previousRecvInfoAddress) {

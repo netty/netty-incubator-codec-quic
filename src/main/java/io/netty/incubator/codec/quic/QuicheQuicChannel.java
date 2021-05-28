@@ -210,6 +210,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         }
 
         connection.initInfoAddresses(remote);
+        currentRecvInfoAddress = connection.recvInfoAddress();
+        currentSendInfoAddress = connection.sendInfoAddress();
 
         // Setup QLOG if needed.
         QLogConfiguration configuration = config.getQLogConfiguration();
@@ -926,6 +928,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             }
 
             boolean needWriteNow = false;
+
             if (SockaddrIn.cmp(QuicheSendInfo.sockAddress(currentSendInfoAddress),
                     QuicheSendInfo.sockAddress(sendInfo)) != 0) {
                 // Update the current address so we can keep track when it change again.
@@ -941,10 +944,16 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
             // If the remote address changed we need to ensure we write the segment before we try to write the rest.
             if (needWriteNow || written < lastWritten) {
-                // The write was smaller then the write before. This means we can write all together as the
-                // last segment can be smaller then the other segments.
                 out.writerIndex(writerIndex + written);
-                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, sendToAddress));
+
+                if (lastWritten == -1) {
+                    // This the first write so we shouldnt try to use segments.
+                    parent().write(new DatagramPacket(out, sendToAddress));
+                } else {
+                    // The write was smaller then the write before. This means we can write all together as the
+                    // last segment can be smaller then the other segments.
+                    parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, sendToAddress));
+                }
                 packetWasWritten = true;
 
                 out = alloc().directBuffer(bufferSize);
@@ -1047,7 +1056,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             SegmentedDatagramPacketAllocator segmentedDatagramPacketAllocator =
                     config.getSegmentedDatagramPacketAllocator();
             if (segmentedDatagramPacketAllocator.maxNumSegments() > 0) {
-                packetWasWritten = connectionSendSimple(); // connectionSendSegments(segmentedDatagramPacketAllocator);
+                packetWasWritten = connectionSendSegments(segmentedDatagramPacketAllocator);
             } else {
                 packetWasWritten = connectionSendSimple();
             }

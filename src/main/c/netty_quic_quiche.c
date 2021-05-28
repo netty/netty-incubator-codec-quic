@@ -576,7 +576,7 @@ static jlong netty_buffer_memory_address(JNIEnv* env, jclass clazz, jobject buff
 }
 
 // Based on https://gist.github.com/kazuho/45eae4f92257daceb73e.
-static jint netty_sockaddr_cmp(jlong addr1, jlong addr2) {
+static jint netty_sockaddr_cmp(JNIEnv* env, jclass clazz,  jlong addr1, jlong addr2) {
     struct sockaddr* x = (struct sockaddr*) addr1;
     struct sockaddr* y = (struct sockaddr*) addr2;
 
@@ -589,6 +589,7 @@ static jint netty_sockaddr_cmp(jlong addr1, jlong addr2) {
     if (x == NULL && y != NULL) {
         return -1;
     }
+
 #define CMP(a, b) if (a != b) return a < b ? -1 : 1
 
     CMP(x->sa_family, y->sa_family);
