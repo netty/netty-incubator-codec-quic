@@ -33,6 +33,10 @@ final class SockaddrIn {
 
     private SockaddrIn() { }
 
+    static int cmp(long memory, long memory2) {
+        return Quiche.sockaddr_cmp(memory, memory2);
+    }
+
     static int write(long memory, InetSocketAddress address) {
         InetAddress addr = address.getAddress();
         return write(addr instanceof Inet6Address, memory, address);

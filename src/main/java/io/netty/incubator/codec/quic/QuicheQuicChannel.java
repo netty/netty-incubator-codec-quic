@@ -875,19 +875,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         return connection == null;
     }
 
-    private boolean updateSendToAddressIfNeeded(long oldSendInfo, long sendInfo) {
-        boolean addressChanged = false;
-        if (remote != null) {
-            if (!QuicheSendInfo.isSockAddrSame(oldSendInfo, sendInfo)) {
-                remote = QuicheSendInfo.read(sendInfo);
-                addressChanged = true;
-            }
-        } else {
-            remote = QuicheSendInfo.read(sendInfo);
-        }
-        return addressChanged;
-    }
-
     private boolean connectionSendSegments(SegmentedDatagramPacketAllocator segmentedDatagramPacketAllocator) {
         final int bufferSize = segmentedDatagramPacketAllocator.maxNumSegments() * Quic.MAX_DATAGRAM_SIZE;
 
@@ -899,8 +886,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         int lastWritten = -1;
         for (;;) {
             long sendInfo = connection.nextSendInfoAddress(currentSendInfoAddress);
-            // Store this so we can send of a segment if needed.
-            InetSocketAddress to = remote;
+            InetSocketAddress sendToAddress = this.remote;
 
             boolean done;
             int writerIndex = out.writerIndex();
@@ -918,22 +904,15 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 done = true;
                 pipeline().fireExceptionCaught(e);
             }
-            boolean addressChanged = updateSendToAddressIfNeeded(currentSendInfoAddress, sendInfo);
-
             if (done) {
                 // We need to write what we have build up so far before we break out of the loop or release the buffer
                 // if nothing is contained in there.
                 int readable = out.readableBytes();
                 if (readable != 0) {
-                    try {
-                        if (lastWritten != -1 && readable > lastWritten) {
-                            parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
-                        } else {
-                            parent().write(new DatagramPacket(out, remote));
-                        }
-                    } finally {
-                        // Update the cached address.
-                        currentSendInfoAddress = sendInfo;
+                    if (lastWritten != -1 && readable > lastWritten) {
+                        parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, sendToAddress));
+                    } else {
+                        parent().write(new DatagramPacket(out, sendToAddress));
                     }
 
                     packetWasWritten = true;
@@ -943,16 +922,32 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 break;
             }
 
-            if (written < lastWritten) {
+            boolean needWriteNow = false;
+            if (SockaddrIn.cmp(QuicheSendInfo.sockAddress(currentSendInfoAddress),
+                    QuicheSendInfo.sockAddress(sendInfo)) != 0) {
+                // Update the current address so we can keep track when it change again.
+                currentSendInfoAddress = sendInfo;
+
+                // Change the cached address
+                InetSocketAddress oldRemote = remote;
+                remote = QuicheSendInfo.read(sendInfo);
+                pipeline().fireUserEventTriggered(
+                        new QuicConnectionMigrationEvent(oldRemote, remote));
+                needWriteNow = true;
+            }
+
+            // If the remote address changed we need to ensure we write the segment before we try to write the rest.
+            if (needWriteNow || written < lastWritten) {
                 // The write was smaller then the write before. This means we can write all together as the
                 // last segment can be smaller then the other segments.
                 out.writerIndex(writerIndex + written);
-                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
+                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, sendToAddress));
                 packetWasWritten = true;
 
                 out = alloc().directBuffer(bufferSize);
                 lastWritten = -1;
                 numSegments = 0;
+
                 continue;
             }
 
@@ -963,7 +958,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 // As the last write was smaller then this write we first need to write what we had before as
                 // a segment can never be bigger then the previous segment. After this we will try to build a new
                 // chain of segments for the writes to follow.
-                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
+                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, sendToAddress));
                 packetWasWritten = true;
 
                 out = newOut;
@@ -979,7 +974,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             // anymore. In this case lets write what we have and start a new chain of segments.
             if (numSegments == segmentedDatagramPacketAllocator.maxNumSegments() ||
                     !out.isWritable()) {
-                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, remote));
+                parent().write(segmentedDatagramPacketAllocator.newPacket(out, lastWritten, sendToAddress));
                 packetWasWritten = true;
 
                 out = alloc().directBuffer(bufferSize);
@@ -1016,19 +1011,20 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 out.release();
                 continue;
             }
-            try {
-                InetSocketAddress oldSendToAddress = remote;
-                if (updateSendToAddressIfNeeded(currentSendInfoAddress, sendInfo)) {
-                    pipeline().fireUserEventTriggered(
-                            new QuicConnectionMigrationEvent(oldSendToAddress, remote));
-                }
-                out.writerIndex(writerIndex + written);
-                parent().write(new DatagramPacket(out, remote));
-                packetWasWritten = true;
-            } finally {
-                // Update the cached address.
+            if (SockaddrIn.cmp(QuicheSendInfo.sockAddress(currentSendInfoAddress),
+                    QuicheSendInfo.sockAddress(sendInfo)) != 0) {
+                // Update the current address so we can keep track when it change again.
                 currentSendInfoAddress = sendInfo;
+
+                // Change the cached address
+                InetSocketAddress oldRemote = remote;
+                remote = QuicheSendInfo.read(sendInfo);
+                pipeline().fireUserEventTriggered(
+                        new QuicConnectionMigrationEvent(oldRemote, remote));
             }
+            out.writerIndex(writerIndex + written);
+            parent().write(new DatagramPacket(out, remote));
+            packetWasWritten = true;
         }
         return packetWasWritten;
     }
@@ -1048,8 +1044,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             SegmentedDatagramPacketAllocator segmentedDatagramPacketAllocator =
                     config.getSegmentedDatagramPacketAllocator();
             if (segmentedDatagramPacketAllocator.maxNumSegments() > 0) {
-                // TODO: Fix me to handle the new API
-                packetWasWritten = connectionSendSimple(); // connectionSendSegments(segmentedDatagramPacketAllocator);
+                packetWasWritten = connectionSendSegments(segmentedDatagramPacketAllocator);
             } else {
                 packetWasWritten = connectionSendSimple();
             }
@@ -1172,13 +1167,15 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 long recvInfoAddress = connection.nextRecvInfoAddress(currentRecvInfoAddress);
                 QuicheRecvInfo.write(recvInfoAddress, sender);
 
-                SocketAddress oldSender = remote;
-                remote = sender;
-                if (oldSender != null) {
-                    if (!QuicheRecvInfo.isSockAddrSame(recvInfoAddress, currentRecvInfoAddress)) {
-                        pipeline().fireUserEventTriggered(
-                                new QuicConnectionMigrationEvent(oldSender, sender));
-                    }
+                SocketAddress oldRemote = remote;
+
+                if (SockaddrIn.cmp(QuicheRecvInfo.sockAddress(currentRecvInfoAddress),
+                        QuicheRecvInfo.sockAddress(recvInfoAddress)) != 0) {
+                    // Update the cached address
+                    currentRecvInfoAddress = recvInfoAddress;
+                    remote = sender;
+                    pipeline().fireUserEventTriggered(
+                            new QuicConnectionMigrationEvent(oldRemote, sender));
                 }
 
                 long connAddr = connection.address();

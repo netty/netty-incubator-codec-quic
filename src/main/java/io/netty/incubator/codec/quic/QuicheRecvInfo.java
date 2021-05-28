@@ -49,8 +49,7 @@ final class QuicheRecvInfo {
         }
     }
 
-    static boolean isSockAddrSame(long memory, long otherMemory) {
-        return Quiche.sockaddr_cmp(memory + Quiche.SIZEOF_QUICHE_RECV_INFO,
-                otherMemory + Quiche.SIZEOF_QUICHE_RECV_INFO) == 0;
+    static long sockAddress(long memory) {
+        return memory + Quiche.SIZEOF_QUICHE_RECV_INFO;
     }
 }

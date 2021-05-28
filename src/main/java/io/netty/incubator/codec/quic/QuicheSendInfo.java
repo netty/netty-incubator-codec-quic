@@ -65,8 +65,7 @@ final class QuicheSendInfo {
         }
     }
 
-    static boolean isSockAddrSame(long memory, long otherMemory) {
-        return Quiche.sockaddr_cmp(memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO,
-                otherMemory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO) == 0;
+    static long sockAddress(long memory) {
+        return memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO;
     }
 }
