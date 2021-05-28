@@ -50,7 +50,8 @@ public abstract class QuicCodecBuilder<B extends QuicCodecBuilder<B>> {
     private int localConnIdLength;
     private Function<QuicChannel, ? extends QuicSslEngine> sslEngineProvider;
     private FlushStrategy flushStrategy = FlushStrategy.DEFAULT;
-    private int version;
+    // package-private for testing only
+    int version;
 
     QuicCodecBuilder(boolean server) {
         Quic.ensureAvailability();
