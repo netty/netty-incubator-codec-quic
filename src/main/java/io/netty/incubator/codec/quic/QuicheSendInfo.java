@@ -65,6 +65,27 @@ final class QuicheSendInfo {
         }
     }
 
+    static void write(long memory, InetSocketAddress address) {
+        long sockaddr = memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO;
+        int len = SockaddrIn.write(sockaddr, address);
+        switch (Quiche.SIZEOF_SOCKLEN_T) {
+            case 1:
+                PlatformDependent.putByte(memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO_LEN, (byte) len);
+                break;
+            case 2:
+                PlatformDependent.putShort(memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO_LEN, (short) len);
+                break;
+            case 4:
+                PlatformDependent.putInt(memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO_LEN, len);
+                break;
+            case 8:
+                PlatformDependent.putLong(memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO_LEN, len);
+                break;
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
     static long sockAddress(long memory) {
         return memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO;
     }

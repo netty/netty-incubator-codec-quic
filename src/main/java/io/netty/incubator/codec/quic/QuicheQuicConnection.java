@@ -18,6 +18,8 @@ package io.netty.incubator.codec.quic;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCounted;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.function.Supplier;
 
 final class QuicheQuicConnection {
@@ -83,6 +85,21 @@ final class QuicheQuicConnection {
         return connection;
     }
 
+    private long sendInfosAddress() {
+        return infoBuffer.memoryAddress() + QUICHE_SEND_INFOS_OFFSET;
+    }
+
+    void initInfoAddresses(InetSocketAddress address) {
+        // Fill both quiche_recv_info structs with the same address.
+        QuicheRecvInfo.write(infoBuffer.memoryAddress(), address);
+        QuicheRecvInfo.write(infoBuffer.memoryAddress() + TOTAL_RECV_INFO_SIZE, address);
+
+        // Fill both quiche_send_info structs with the same address.
+        long sendInfosAddress = sendInfosAddress();
+        QuicheSendInfo.write(sendInfosAddress, address);
+        QuicheSendInfo.write(sendInfosAddress + Quiche.SIZEOF_QUICHE_SEND_INFO, address);
+    }
+
     long nextRecvInfoAddress(long previousRecvInfoAddress) {
         long memoryAddress = infoBuffer.memoryAddress();
         if (memoryAddress == previousRecvInfoAddress) {
@@ -92,7 +109,7 @@ final class QuicheQuicConnection {
     }
 
     long nextSendInfoAddress(long previousSendInfoAddress) {
-        long memoryAddress = infoBuffer.memoryAddress() + QUICHE_SEND_INFOS_OFFSET;
+        long memoryAddress = sendInfosAddress();
         if (memoryAddress == previousSendInfoAddress) {
             return memoryAddress + Quiche.SIZEOF_QUICHE_SEND_INFO;
         }

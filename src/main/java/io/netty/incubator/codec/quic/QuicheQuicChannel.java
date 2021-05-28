@@ -162,6 +162,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
         this.supportsDatagram = supportsDatagram;
         this.remote = remote;
+
         this.streamHandler = streamHandler;
         this.streamOptionsArray = streamOptionsArray;
         this.streamAttrsArray = streamAttrsArray;
@@ -202,10 +203,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     void attachQuicheConnection(QuicheQuicConnection connection) {
         this.connection = connection;
+
         byte[] traceId = Quiche.quiche_conn_trace_id(connection.address());
         if (traceId != null) {
             this.traceId = new String(traceId);
         }
+
+        connection.initInfoAddresses(remote);
 
         // Setup QLOG if needed.
         QLogConfiguration configuration = config.getQLogConfiguration();
