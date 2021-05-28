@@ -583,6 +583,8 @@ final class Quiche {
 
     private static native long buffer_memory_address(ByteBuffer buffer);
 
+    static native int sockaddr_cmp(long addr, long addr2);
+
     /**
      * Returns the memory address if the {@link ByteBuf}
      */

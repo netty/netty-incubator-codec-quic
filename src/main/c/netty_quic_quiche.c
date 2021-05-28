@@ -575,6 +575,42 @@ static jlong netty_buffer_memory_address(JNIEnv* env, jclass clazz, jobject buff
     return (jlong) (*env)->GetDirectBufferAddress(env, buffer);
 }
 
+// Based on https://gist.github.com/kazuho/45eae4f92257daceb73e.
+static jint netty_sockaddr_cmp(jlong addr1, jlong addr2) {
+    struct sockaddr* x = (struct sockaddr*) addr1;
+    struct sockaddr* y = (struct sockaddr*) addr2;
+
+    if (x == NULL && y == NULL) {
+        return 0;
+    }
+    if (x != NULL && y == NULL) {
+        return 1;
+    }
+    if (x == NULL && y != NULL) {
+        return -1;
+    }
+#define CMP(a, b) if (a != b) return a < b ? -1 : 1
+
+    CMP(x->sa_family, y->sa_family);
+
+    if (x->sa_family == AF_INET) {
+        struct sockaddr_in *xin = (void*)x, *yin = (void*)y;
+        CMP(ntohl(xin->sin_addr.s_addr), ntohl(yin->sin_addr.s_addr));
+        CMP(ntohs(xin->sin_port), ntohs(yin->sin_port));
+    } else if (x->sa_family == AF_INET6) {
+        struct sockaddr_in6 *xin6 = (void*)x, *yin6 = (void*)y;
+        int r = memcmp(xin6->sin6_addr.s6_addr, yin6->sin6_addr.s6_addr, sizeof(xin6->sin6_addr.s6_addr));
+        if (r != 0)
+            return r;
+        CMP(ntohs(xin6->sin6_port), ntohs(yin6->sin6_port));
+        CMP(xin6->sin6_flowinfo, yin6->sin6_flowinfo);
+        CMP(xin6->sin6_scope_id, yin6->sin6_scope_id);
+    }
+
+#undef CMP
+    return 0;
+}
+
 // JNI Registered Methods End
 
 // JNI Method Registration Table Begin
@@ -682,7 +718,8 @@ static const JNINativeMethod fixed_method_table[] = {
   { "quiche_config_set_cc_algorithm", "(JI)V", (void *) netty_quiche_config_set_cc_algorithm },
   { "quiche_config_enable_hystart", "(JZ)V", (void *) netty_quiche_config_enable_hystart },
   { "quiche_config_free", "(J)V", (void *) netty_quiche_config_free },
-  { "buffer_memory_address", "(Ljava/nio/ByteBuffer;)J", (void *) netty_buffer_memory_address}
+  { "buffer_memory_address", "(Ljava/nio/ByteBuffer;)J", (void *) netty_buffer_memory_address},
+  { "sockaddr_cmp", "(JJ)I", (void *) netty_sockaddr_cmp}
 };
 
 static const jint fixed_method_table_size = sizeof(fixed_method_table) / sizeof(fixed_method_table[0]);

@@ -48,4 +48,9 @@ final class QuicheRecvInfo {
                 throw new IllegalStateException();
         }
     }
+
+    static boolean isSockAddrSame(long memory, long otherMemory) {
+        return Quiche.sockaddr_cmp(memory + Quiche.SIZEOF_QUICHE_RECV_INFO,
+                otherMemory + Quiche.SIZEOF_QUICHE_RECV_INFO) == 0;
+    }
 }

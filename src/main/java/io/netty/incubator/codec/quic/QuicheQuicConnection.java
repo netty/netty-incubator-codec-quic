@@ -21,19 +21,20 @@ import io.netty.util.ReferenceCounted;
 import java.util.function.Supplier;
 
 final class QuicheQuicConnection {
+    private static final int TOTAL_RECV_INFO_SIZE = Quiche.SIZEOF_QUICHE_RECV_INFO + Quiche.SIZEOF_SOCKADDR_STORAGE;
+    private static final int QUICHE_SEND_INFOS_OFFSET = 2 * TOTAL_RECV_INFO_SIZE;
     private final ReferenceCounted refCnt;
     private final QuicheQuicSslEngine engine;
+    private final ByteBuf infoBuffer;
     private long connection;
-    private final ByteBuf recvInfo;
-    private final ByteBuf sendInfo;
 
     QuicheQuicConnection(long connection, QuicheQuicSslEngine engine, ReferenceCounted refCnt) {
         this.connection = connection;
         this.engine = engine;
         this.refCnt = refCnt;
         // TODO: Maybe cache these per thread as we only use them temporary within a limited scope.
-        recvInfo = Quiche.allocateNativeOrder(Quiche.SIZEOF_QUICHE_RECV_INFO + Quiche.SIZEOF_SOCKADDR_STORAGE);
-        sendInfo = Quiche.allocateNativeOrder(Quiche.SIZEOF_QUICHE_SEND_INFO);
+        infoBuffer = Quiche.allocateNativeOrder(QUICHE_SEND_INFOS_OFFSET +
+                2 * Quiche.SIZEOF_QUICHE_SEND_INFO);
     }
 
     void free() {
@@ -50,8 +51,7 @@ final class QuicheQuicConnection {
         }
         if (release) {
             refCnt.release();
-            recvInfo.release();
-            sendInfo.release();
+            infoBuffer.release();
         }
     }
 
@@ -83,12 +83,20 @@ final class QuicheQuicConnection {
         return connection;
     }
 
-    long recvInfoAddress() {
-        return recvInfo.memoryAddress();
+    long nextRecvInfoAddress(long previousRecvInfoAddress) {
+        long memoryAddress = infoBuffer.memoryAddress();
+        if (memoryAddress == previousRecvInfoAddress) {
+            return memoryAddress + TOTAL_RECV_INFO_SIZE;
+        }
+        return memoryAddress;
     }
 
-    long sendInfoAddress() {
-        return sendInfo.memoryAddress();
+    long nextSendInfoAddress(long previousSendInfoAddress) {
+        long memoryAddress = infoBuffer.memoryAddress() + QUICHE_SEND_INFOS_OFFSET;
+        if (memoryAddress == previousSendInfoAddress) {
+            return memoryAddress + Quiche.SIZEOF_QUICHE_SEND_INFO;
+        }
+        return memoryAddress;
     }
 
     boolean isClosed() {
@@ -106,4 +114,5 @@ final class QuicheQuicConnection {
             super.finalize();
         }
     }
+
 }
