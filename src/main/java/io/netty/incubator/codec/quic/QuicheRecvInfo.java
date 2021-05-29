@@ -23,6 +23,19 @@ final class QuicheRecvInfo {
 
     private QuicheRecvInfo() { }
 
+    /**
+     * Write the {@link InetSocketAddress} into the {@code quiche_recv_info} struct.
+     *
+     * <pre>
+     * typedef struct {
+     *     struct sockaddr *from;
+     *     socklen_t from_len;
+     * } quiche_recv_info;
+     * </pre>
+     *
+     * @param memory the memory address of {@code quiche_recv_info}.
+     * @param address the {@link InetSocketAddress} to write into {@code quiche_recv_info}.
+     */
     static void write(long memory, InetSocketAddress address) {
         long sockaddr = memory + Quiche.SIZEOF_QUICHE_RECV_INFO;
         int len = SockaddrIn.write(sockaddr, address);
@@ -49,6 +62,11 @@ final class QuicheRecvInfo {
         }
     }
 
+    /**
+     * Return the memory address of the {@code sockaddr} that is contained in {@code quiche_recv_info}.
+     * @param memory the memory address of {@code quiche_recv_info}.
+     * @return the memory address of the {@code sockaddr}.
+     */
     static long sockAddress(long memory) {
         return memory + Quiche.SIZEOF_QUICHE_RECV_INFO;
     }

@@ -53,6 +53,7 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     protected final QuicheConfig config;
     protected final int localConnIdLength;
+    // This buffer is used to copy InetSocketAddress to sockaddr_storage and so pass it down the JNI layer.
     protected ByteBuf sockaddrMemory;
 
     QuicheQuicCodec(QuicheConfig config, int localConnIdLength, int maxTokenLength, FlushStrategy flushStrategy) {

@@ -19,7 +19,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCounted;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.function.Supplier;
 
 final class QuicheQuicConnection {
@@ -27,6 +26,17 @@ final class QuicheQuicConnection {
     private static final int QUICHE_SEND_INFOS_OFFSET = 2 * TOTAL_RECV_INFO_SIZE;
     private final ReferenceCounted refCnt;
     private final QuicheQuicSslEngine engine;
+
+    // This block of memory is used to store the following structs (in this order):
+    // - quiche_recv_info
+    // - sockaddr_storage
+    // - quiche_recv_info
+    // - sockaddr_storage
+    // - quiche_send_info
+    // - quiche_send_info
+    //
+    // We need to have every stored 2 times as we need to check if the last sockaddr has changed between
+    // quiche_conn_recv and quiche_conn_send calls. If this happens we know a QUIC connection migration did happen.
     private final ByteBuf infoBuffer;
     private long connection;
 

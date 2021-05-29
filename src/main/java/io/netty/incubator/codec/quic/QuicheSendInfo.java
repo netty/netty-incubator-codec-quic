@@ -20,8 +20,6 @@ import io.netty.util.internal.PlatformDependent;
 
 import java.net.InetSocketAddress;
 
-import static io.netty.util.internal.PlatformDependent.BIG_ENDIAN_NATIVE_ORDER;
-
 final class QuicheSendInfo {
 
     private static final FastThreadLocal<byte[]> IPV4_ARRAYS = new FastThreadLocal<byte[]>() {
@@ -40,6 +38,12 @@ final class QuicheSendInfo {
 
     private QuicheSendInfo() { }
 
+    /**
+     * Read the {@link InetSocketAddress} out of the {@code quiche_send_info} struct.
+     *
+     * @param memory the memory address of {@code quiche_send_info}.
+     * @return the address that was read.
+     */
     static InetSocketAddress read(long memory) {
         long to = memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO;
         long len = readLen(memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO_LEN);
@@ -65,8 +69,22 @@ final class QuicheSendInfo {
         }
     }
 
+    /**
+     * Write the {@link InetSocketAddress} into the {@code quiche_send_info} struct.
+     * <pre>
+     *
+     * typedef struct {
+     *     // The address the packet should be sent to.
+     *     struct sockaddr_storage to;
+     *     socklen_t to_len;
+     * } quiche_send_info;
+     * </pre>
+     *
+     * @param memory the memory address of {@code quiche_send_info}.
+     * @param address the {@link InetSocketAddress} to write into {@code quiche_send_info}.
+     */
     static void write(long memory, InetSocketAddress address) {
-        long sockaddr = memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO;
+        long sockaddr = sockAddress(memory);
         int len = SockaddrIn.write(sockaddr, address);
         switch (Quiche.SIZEOF_SOCKLEN_T) {
             case 1:
@@ -86,6 +104,11 @@ final class QuicheSendInfo {
         }
     }
 
+    /**
+     * Return the memory address of the {@code sockaddr_storage} that is contained in {@code quiche_send_info}.
+     * @param memory the memory address of {@code quiche_send_info}.
+     * @return the memory address of the {@code sockaddr_storage}.
+     */
     static long sockAddress(long memory) {
         return memory + Quiche.QUICHE_SEND_INFO_OFFSETOF_TO;
     }
