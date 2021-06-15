@@ -22,11 +22,16 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+// This needs to be included for quiche_recv_info and quiche_send_info structs.
+#include <time.h>
 #else
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+// This needs to be included for quiche_recv_info and quiche_send_info structs.
+#include <sys/time.h>
 #endif // _WIN32
+
 
 #include <quiche.h>
 #include "netty_jni_util.h"
