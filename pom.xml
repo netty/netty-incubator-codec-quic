@@ -185,7 +185,7 @@
         <libssl>libssl.a</libssl>
         <libcrypto>libcrypto.a</libcrypto>
         <libquiche>libquiche.a</libquiche>
-        <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL -lrt</extraLdflags>
+        <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
         <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=${os.detected.arch}</bundleNativeCode>
       </properties>
     </profile>
@@ -202,7 +202,7 @@
         <libssl>libssl.a</libssl>
         <libcrypto>libcrypto.a</libcrypto>
         <libquiche>libquiche.a</libquiche>
-        <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL -lrt</extraLdflags>
+        <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
         <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=aarch_64</bundleNativeCode>
         <jniLibName>netty_quiche_linux_aarch_64</jniLibName>
         <jni.classifier>linux-aarch_64</jni.classifier>
