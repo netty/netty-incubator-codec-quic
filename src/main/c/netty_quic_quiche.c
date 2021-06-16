@@ -53,9 +53,6 @@ static jobject   quiche_logger;
 static JavaVM     *global_vm = NULL;
 static char* staticPackagePrefix = NULL;
 
-// Add extern declaration to let it compile with -std=c99 
-extern char* strdup(const char*);
-
 jint quic_get_java_env(JNIEnv **env)
 {
     return (*global_vm)->GetEnv(global_vm, (void **)env, NETTY_JNI_UTIL_JNI_VERSION);
