@@ -98,7 +98,7 @@
     <generatedSourcesDir>${project.build.directory}/generated-sources</generatedSourcesDir>
     <templateDir>${project.build.directory}/template</templateDir>
     <cargoTarget />
-    <cflags>-std=c99 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3 -I${quicheHomeIncludeDir} -I${boringsslHomeIncludeDir}</cflags>
+    <cflags>-std=gnu99 -Werror -fno-omit-frame-pointer -fvisibility=hidden -Wunused -Wno-unused-value -O3 -I${quicheHomeIncludeDir} -I${boringsslHomeIncludeDir}</cflags>
     <ldflags>-L${quicheHomeBuildDir} -lquiche -L${boringsslHomeBuildDir} -lssl -lcrypto</ldflags>
     <extraCmakeFlags />
     <extraCflags />
