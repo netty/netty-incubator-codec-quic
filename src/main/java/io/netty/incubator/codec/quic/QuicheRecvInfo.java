@@ -15,17 +15,19 @@
  */
 package io.netty.incubator.codec.quic;
 
-import io.netty.util.internal.PlatformDependent;
-
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 
+
+/**
+ * Utility class to handle access to {@code quiche_recv_info}.
+ */
 final class QuicheRecvInfo {
 
     private QuicheRecvInfo() { }
 
     /**
-     * Write the {@link InetSocketAddress} into the {@code quiche_recv_info} struct.
+     * Set the {@link InetSocketAddress} into the {@code quiche_recv_info} struct.
      *
      * <pre>
      * typedef struct {
@@ -34,16 +36,16 @@ final class QuicheRecvInfo {
      * } quiche_recv_info;
      * </pre>
      *
-     * @param memory the memory address of {@code quiche_recv_info}.
+     * @param memory the memory of {@code quiche_recv_info}.
      * @param address the {@link InetSocketAddress} to write into {@code quiche_recv_info}.
      */
     static void setRecvInfo(ByteBuffer memory, InetSocketAddress address) {
         int position = memory.position();
         try {
             int sockaddrPosition = position + Quiche.SIZEOF_QUICHE_RECV_INFO;
-            memory.position(position + sockaddrPosition);
+            memory.position(sockaddrPosition);
 
-            long sockaddrMemoryAddress = Quiche.memoryAddress(memory) + position + sockaddrPosition;
+            long sockaddrMemoryAddress = Quiche.memoryAddressWithPosition(memory);
             int len = SockaddrIn.setAddress(memory, address);
             if (Quiche.SIZEOF_SIZE_T == 4) {
                 memory.putInt(position + Quiche.QUICHE_RECV_INFO_OFFSETOF_FROM, (int) sockaddrMemoryAddress);
@@ -72,17 +74,16 @@ final class QuicheRecvInfo {
     }
 
     /**
-     * Return the memory address of the {@code sockaddr} that is contained in {@code quiche_recv_info}.
-     * @param memory the memory address of {@code quiche_recv_info}.
-     * @return the memory address of the {@code sockaddr}.
+     * Returns {@code true} if both {@link ByteBuffer}s have the same {@code sock_addr} stored.
+     *
+     * @param memory    the first {@link ByteBuffer} which holds a {@code quiche_recv_info}.
+     * @param memory2   the second {@link ByteBuffer} which holds a {@code quiche_recv_info}.
+     * @return          {@code true} if both {@link ByteBuffer}s have the same {@code sock_addr} stored, {@code false}
+     *                  otherwise.
      */
-    static int sockAddressIdx(int position) {
-        return position + Quiche.SIZEOF_QUICHE_RECV_INFO;
-    }
-
     static boolean isSameAddress(ByteBuffer memory, ByteBuffer memory2) {
-        long address1 = Quiche.memoryAddress(memory) + sockAddressIdx(memory.position());
-        long address2 = Quiche.memoryAddress(memory2) + sockAddressIdx(memory2.position());
+        long address1 = Quiche.memoryAddressWithPosition(memory) + Quiche.SIZEOF_QUICHE_RECV_INFO;
+        long address2 = Quiche.memoryAddressWithPosition(memory2) + Quiche.SIZEOF_QUICHE_RECV_INFO;
         return SockaddrIn.cmp(address1, address2) == 0;
     }
 }

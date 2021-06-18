@@ -266,7 +266,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             QuicheQuicConnection connection = quicheEngine.createConnection(ssl ->
                     Quiche.quiche_conn_new_with_tls(Quiche.memoryAddress(idBuffer) + idBuffer.readerIndex(),
                             idBuffer.readableBytes(), -1, -1,
-                            Quiche.memoryAddress(sockaddrMemory) + sockaddrMemory.position(), sockaddrLen,
+                            Quiche.memoryAddressWithPosition(sockaddrMemory), sockaddrLen,
                             configAddr, ssl, false));
             if (connection == null) {
                 failConnectPromiseAndThrow(new ConnectException());
@@ -741,7 +741,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private int streamSend(long streamId, ByteBuffer buffer, boolean fin) throws ClosedChannelException {
         return Quiche.quiche_conn_stream_send(connectionAddressChecked(), streamId,
-                Quiche.memoryAddress(buffer) + buffer.position(), buffer.remaining(), fin);
+                Quiche.memoryAddressWithPosition(buffer), buffer.remaining(), fin);
     }
 
     StreamRecvResult streamRecv(long streamId, ByteBuf buffer) throws Exception {
@@ -894,7 +894,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             int writerIndex = out.writerIndex();
             int written = Quiche.quiche_conn_send(
                     connAddr, Quiche.memoryAddress(out) + writerIndex, out.writableBytes(),
-                    Quiche.memoryAddress(sendInfo) + sendInfo.position());
+                    Quiche.memoryAddressWithPosition(sendInfo));
             if (written == 0) {
                 // No need to create a new datagram packet. Just try again.
                 continue;
@@ -999,7 +999,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             int writerIndex = out.writerIndex();
             int written = Quiche.quiche_conn_send(
                     connAddr, Quiche.memoryAddress(out) + writerIndex, out.writableBytes(),
-                    Quiche.memoryAddress(sendInfo) + sendInfo.position());
+                    Quiche.memoryAddressWithPosition(sendInfo));
 
             try {
                 if (Quiche.throwIfError(written)) {
@@ -1183,7 +1183,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                     do  {
                         // Call quiche_conn_recv(...) until we consumed all bytes or we did receive some error.
                         int res = Quiche.quiche_conn_recv(connAddr, memoryAddress, bufferReadable,
-                                Quiche.memoryAddress(recvInfo) + recvInfo.position());
+                                Quiche.memoryAddressWithPosition(recvInfo));
                         boolean done;
                         try {
                             done = Quiche.throwIfError(res);

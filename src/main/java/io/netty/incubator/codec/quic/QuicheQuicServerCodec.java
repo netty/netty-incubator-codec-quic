@@ -215,7 +215,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
             ByteBuffer peerAddrMemory = sockaddrMemory.internalNioBuffer(0, sockaddrMemory.capacity());
             int peerLen = SockaddrIn.setAddress(peerAddrMemory, sender);
             return Quiche.quiche_conn_new_with_tls(scidAddr, scidLen, ocidAddr, ocidLen,
-                    Quiche.memoryAddress(peerAddrMemory) + peerAddrMemory.position(), peerLen,
+                    Quiche.memoryAddressWithPosition(peerAddrMemory), peerLen,
                     config.nativeAddress(), ssl, true);
         });
         if (connection  == null) {
