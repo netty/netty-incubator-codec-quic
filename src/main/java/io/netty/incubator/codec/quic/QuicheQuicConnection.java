@@ -44,7 +44,6 @@ final class QuicheQuicConnection {
     private boolean sendInfoFirst = true;
     private final ByteBuffer recvInfoBuffer1;
     private final ByteBuffer recvInfoBuffer2;
-
     private final ByteBuffer sendInfoBuffer1;
     private final ByteBuffer sendInfoBuffer2;
 
@@ -117,6 +116,10 @@ final class QuicheQuicConnection {
     }
 
     void initInfo(InetSocketAddress address) {
+        assert connection != -1;
+        assert recvInfoBuffer.refCnt() != 0;
+        assert sendInfoBuffer.refCnt() != 0;
+
         // Fill both quiche_recv_info structs with the same address.
         QuicheRecvInfo.setRecvInfo(recvInfoBuffer1, address);
         QuicheRecvInfo.setRecvInfo(recvInfoBuffer2, address);
@@ -127,20 +130,24 @@ final class QuicheQuicConnection {
     }
 
     ByteBuffer nextRecvInfo() {
+        assert recvInfoBuffer.refCnt() != 0;
         recvInfoFirst = !recvInfoFirst;
         return recvInfoFirst ? recvInfoBuffer1 : recvInfoBuffer2;
     }
 
     ByteBuffer nextSendInfo() {
+        assert sendInfoBuffer.refCnt() != 0;
         sendInfoFirst = !sendInfoFirst;
         return sendInfoFirst ? sendInfoBuffer1 : sendInfoBuffer2;
     }
 
     boolean isSendInfoChanged() {
+        assert sendInfoBuffer.refCnt() != 0;
         return !QuicheSendInfo.isSameAddress(sendInfoBuffer1, sendInfoBuffer2);
     }
 
     boolean isRecvInfoChanged() {
+        assert recvInfoBuffer.refCnt() != 0;
         return !QuicheRecvInfo.isSameAddress(recvInfoBuffer1, recvInfoBuffer2);
     }
 
