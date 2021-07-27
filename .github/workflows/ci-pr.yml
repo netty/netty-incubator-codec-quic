@@ -163,7 +163,9 @@ jobs:
           name: test-results-pr-windows-x86_64
           path: '**/target/surefire-reports/TEST-*.xml'
 
-      - run: rm -r -Force target/boringssl*
+      - run: |
+          rm -r -Force target/boringssl*
+          rm -r -Force target/quiche*
         if: always()
 
       - uses: actions/upload-artifact@v2
