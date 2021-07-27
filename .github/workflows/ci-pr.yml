@@ -167,4 +167,4 @@ jobs:
         if: ${{ failure() }}
         with:
           name: build-pr-windows-target
-          path: "**/target/"
+          path: "**/target/hs*"
