@@ -163,8 +163,11 @@ jobs:
           name: test-results-pr-windows-x86_64
           path: '**/target/surefire-reports/TEST-*.xml'
 
+      - run: rm -rf target/boringssl*
+        if: always()
+
       - uses: actions/upload-artifact@v2
         if: ${{ failure() }}
         with:
           name: build-pr-windows-target
-          paths: "**/target/", "!**/target/*boringssl*"
+          path: "**/target/"
