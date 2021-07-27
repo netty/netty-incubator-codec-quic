@@ -167,4 +167,4 @@ jobs:
         if: ${{ failure() }}
         with:
           name: build-pr-windows-target
-          path: "**/target/hs*"
+          path: "**/target/", "!**/target/*boringssl*"
