@@ -636,12 +636,12 @@ static void netty_boringssl_SSLContext_free(JNIEnv* env, jclass clazz, long ctx)
         pool = SSL_CTX_get_ex_data(ssl_ctx, crypto_buffer_pool_idx);
     }
     */
-    SSL_CTX_free(ssl_ctx);
+    //SSL_CTX_free(ssl_ctx);
 
     // The pool should be freed last in case that the SSL_CTX has a reference to things tha are stored in the
     // pool itself. Otherwise we may see an assert error when trying to call CRYPTO_BUFFER_POOL_free.
     if (pool != NULL) {
-        CRYPTO_BUFFER_POOL_free(pool);
+        //CRYPTO_BUFFER_POOL_free(pool);
     }
 }
 
