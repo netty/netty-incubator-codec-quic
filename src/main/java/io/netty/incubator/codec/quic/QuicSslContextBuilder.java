@@ -19,6 +19,7 @@ package io.netty.incubator.codec.quic;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.util.KeyManagerFactoryWrapper;
 import io.netty.handler.ssl.util.TrustManagerFactoryWrapper;
+import io.netty.util.Mapping;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -102,6 +103,7 @@ public final class QuicSslContextBuilder {
     private ClientAuth clientAuth = ClientAuth.NONE;
     private String[] applicationProtocols;
     private Boolean earlyData;
+    private Mapping<? super String, ? extends QuicSslContext> mapping;
 
     private QuicSslContextBuilder(boolean forServer) {
         this.forServer = forServer;
@@ -258,7 +260,23 @@ public final class QuicSslContextBuilder {
      * Sets the client authentication mode.
      */
     public QuicSslContextBuilder clientAuth(ClientAuth clientAuth) {
+        if (!forServer) {
+            throw new UnsupportedOperationException("Only supported for server");
+        }
         this.clientAuth = checkNotNull(clientAuth, "clientAuth");
+        return this;
+    }
+
+    /**
+     * Enables support for
+     * <a href="https://quicwg.org/ops-drafts/draft-ietf-quic-manageability.html#name-server-name-indication-sni">
+     *     SNI</a> on the server side.
+     */
+    public QuicSslContextBuilder sni(Mapping<? super String, ? extends QuicSslContext> mapping) {
+        if (!forServer) {
+            throw new UnsupportedOperationException("Only supported for server");
+        }
+        this.mapping = checkNotNull(mapping, "mapping");
         return this;
     }
 
@@ -269,10 +287,10 @@ public final class QuicSslContextBuilder {
     public QuicSslContext build() {
         if (forServer) {
             return new QuicheQuicSslContext(true, sessionCacheSize, sessionTimeout, clientAuth,
-                    trustManagerFactory, keyManagerFactory, keyPassword, earlyData, applicationProtocols);
+                    trustManagerFactory, keyManagerFactory, keyPassword, mapping, earlyData, applicationProtocols);
         } else {
             return new QuicheQuicSslContext(false, sessionCacheSize, sessionTimeout, clientAuth,
-                    trustManagerFactory, keyManagerFactory, keyPassword, earlyData, applicationProtocols);
+                    trustManagerFactory, keyManagerFactory, keyPassword, mapping, earlyData, applicationProtocols);
         }
     }
 }
