@@ -329,7 +329,7 @@ final class QuicheQuicSslContext extends QuicSslContext {
     }
 
     private static final class NativeSslContext extends AbstractReferenceCounted {
-        private final long ctx;
+        private volatile long ctx;
 
         NativeSslContext(long ctx) {
             this.ctx = ctx;
@@ -340,8 +340,11 @@ final class QuicheQuicSslContext extends QuicSslContext {
         }
 
         @Override
-        protected void deallocate() {
-            BoringSSL.SSLContext_free(ctx);
+        protected synchronized void deallocate() {
+            if (ctx != -1) {
+                BoringSSL.SSLContext_free(ctx);
+                ctx = -1;
+            }
         }
 
         @Override

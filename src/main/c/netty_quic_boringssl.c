@@ -587,9 +587,6 @@ error:
 
 static void netty_boringssl_SSLContext_free(JNIEnv* env, jclass clazz, long ctx) {
     SSL_CTX* ssl_ctx = (SSL_CTX*) ctx;
-    if (ssl_ctx == NULL) {
-        return;
-    }
     jobject handshakeCompleteCallbackRef = SSL_CTX_get_ex_data(ssl_ctx, handshakeCompleteCallbackIdx);
     if (handshakeCompleteCallbackRef != NULL) {
         (*env)->DeleteGlobalRef(env, handshakeCompleteCallbackRef);
