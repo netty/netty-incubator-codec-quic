@@ -174,3 +174,11 @@ jobs:
         with:
           name: build-pr-windows-target
           path: "**/target/"
+
+      - run: ./mvnw.cmd -B -ntp --file pom.xml clean
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: build-pr-windows-project
+          path: "**/"
