@@ -118,21 +118,10 @@ jobs:
           name: test-results-pr-windows-x86_64
           path: '**/target/surefire-reports/TEST-*.xml'
 
-      - run: |
-          rm -r -Force target/boringssl*
-          rm -r -Force target/quiche*
-        if: always()
-
       - uses: actions/upload-artifact@v2
         if: ${{ failure() }}
         with:
-          name: build-pr-windows-target
-          path: "**/target/"
-
-      - run: ./mvnw.cmd -B -ntp --file pom.xml clean
-
-      - uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
-        with:
-          name: build-pr-windows-project
-          path: "**/"
+          name: build-pr-windows
+          path: |
+            "**/target/surefire-reports"
+            "**/hs_err*"
