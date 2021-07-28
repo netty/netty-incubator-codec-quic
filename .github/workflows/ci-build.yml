@@ -155,7 +155,7 @@ jobs:
           name: build-windows-target
           path: |
             **/target/surefire-reports/
-            hs_err*.log
+            **/hs_err*.log
 
   build-android:
     runs-on: ubuntu-latest
@@ -206,4 +206,4 @@ jobs:
           name: target
           path: |
             **/target/surefire-reports/
-            hs_err*.log
+            **/hs_err*.log
