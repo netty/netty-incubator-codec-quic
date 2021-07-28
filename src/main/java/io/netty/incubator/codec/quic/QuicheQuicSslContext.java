@@ -341,6 +341,7 @@ final class QuicheQuicSslContext extends QuicSslContext {
 
         @Override
         protected synchronized void deallocate() {
+            System.err.println("CTX=" + ctx);
             if (ctx != -1) {
                 BoringSSL.SSLContext_free(ctx);
                 ctx = -1;
