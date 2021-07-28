@@ -26,52 +26,6 @@ env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryhandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=240
 
 jobs:
-  build-linux-x86_64:
-    runs-on: ubuntu-latest
-    name: linux-x86_64 build
-    steps:
-      - uses: actions/checkout@v2
-
-      # Caching of maven dependencies
-      - uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: pr-linux-x86_64-maven-cache-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            pr-linux-x86_64-maven-cache-
-
-      # Enable caching of Docker layers
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        continue-on-error: true
-        with:
-          key: pr-linux-x86_64-docker-cache-{hash}
-          restore-keys: |
-            pr-linux-x86_64-docker-cache-
-
-      - name: Build docker image
-        run: docker-compose -f docker/docker-compose.centos-6.yaml -f docker/docker-compose.centos-6.18.yaml build
-
-      - name: Build project with leak detection
-        run: docker-compose -f docker/docker-compose.centos-6.yaml -f docker/docker-compose.centos-6.18.yaml run build-leak  | tee build-leak.output
-
-      - name: Checking for test failures
-        run: ./.github/scripts/check_build_result.sh build-leak.output
-
-      - name: Checking for detected leak
-        run: ./.github/scripts/check_leak.sh build-leak.output
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-results-pr-linux-x86_64
-          path: '**/target/surefire-reports/TEST-*.xml'
-
-      - uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
-        with:
-          name: target
-          path: "**/target/"
 
   build-linux-aarch64:
     runs-on: ubuntu-latest
