@@ -123,5 +123,5 @@ jobs:
         with:
           name: build-pr-windows
           path: |
-            "**/target/surefire-reports"
-            "**/hs_err*"
+            **/target/surefire-reports/
+            hs_err*.log
