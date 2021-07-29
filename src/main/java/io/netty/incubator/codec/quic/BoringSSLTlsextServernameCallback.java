@@ -17,8 +17,6 @@ package io.netty.incubator.codec.quic;
 
 import io.netty.util.Mapping;
 
-import javax.net.ssl.SNIHostName;
-
 final class BoringSSLTlsextServernameCallback {
 
     private final QuicheQuicSslEngineMap engineMap;
@@ -38,9 +36,8 @@ final class BoringSSLTlsextServernameCallback {
             return -1;
         }
 
-        QuicSslContext context = mapping.map(new SNIHostName(serverName).getAsciiName());
+        QuicSslContext context = mapping.map(serverName);
         if (context == null) {
-            // TODO: Maybe return some explicit error code ?
             return -1;
         }
         return engine.moveTo((QuicheQuicSslContext) context);

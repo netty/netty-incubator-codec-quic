@@ -25,8 +25,11 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509ExtendedKeyManager;
 import java.io.File;
+import java.net.Socket;
 import java.security.KeyStore;
+import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 
@@ -36,6 +39,39 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
  * Builder for configuring a new SslContext for creation.
  */
 public final class QuicSslContextBuilder {
+
+    private static final X509ExtendedKeyManager DUMMY_KEYMANAGER = new X509ExtendedKeyManager() {
+
+        @Override
+        public String[] getClientAliases(String keyType, Principal[] issuers) {
+            return new String[0];
+        }
+
+        @Override
+        public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
+            return null;
+        }
+
+        @Override
+        public String[] getServerAliases(String keyType, Principal[] issuers) {
+            return new String[0];
+        }
+
+        @Override
+        public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+            return null;
+        }
+
+        @Override
+        public X509Certificate[] getCertificateChain(String alias) {
+            return new X509Certificate[0];
+        }
+
+        @Override
+        public PrivateKey getPrivateKey(String alias) {
+            return null;
+        }
+    };
 
     /**
      * Creates a builder for new client-side {@link QuicSslContext} that can be used for {@code QUIC}.
@@ -94,6 +130,19 @@ public final class QuicSslContextBuilder {
         return new QuicSslContextBuilder(true).keyManager(keyManager, keyPassword);
     }
 
+    /**
+     * Enables support for
+     * <a href="https://quicwg.org/ops-drafts/draft-ietf-quic-manageability.html#name-server-name-indication-sni">
+     *     SNI</a> on the server side.
+     *
+     * @param mapping   the {@link Mapping} that is used to map names to the {@link QuicSslContext} to use.
+     *                  Usually using {@link io.netty.util.DomainWildcardMappingBuilder} should be used
+     *                  to create the {@link Mapping}.
+     */
+    public static QuicSslContext buildForServerWithSni(Mapping<? super String, ? extends QuicSslContext> mapping) {
+        return forServer(DUMMY_KEYMANAGER, null).sni(mapping).build();
+    }
+
     private final boolean forServer;
     private TrustManagerFactory trustManagerFactory;
     private String keyPassword;
@@ -107,6 +156,11 @@ public final class QuicSslContextBuilder {
 
     private QuicSslContextBuilder(boolean forServer) {
         this.forServer = forServer;
+    }
+
+    private QuicSslContextBuilder sni(Mapping<? super String, ? extends QuicSslContext> mapping) {
+        this.mapping = checkNotNull(mapping, "mapping");
+        return this;
     }
 
     /**
@@ -264,19 +318,6 @@ public final class QuicSslContextBuilder {
             throw new UnsupportedOperationException("Only supported for server");
         }
         this.clientAuth = checkNotNull(clientAuth, "clientAuth");
-        return this;
-    }
-
-    /**
-     * Enables support for
-     * <a href="https://quicwg.org/ops-drafts/draft-ietf-quic-manageability.html#name-server-name-indication-sni">
-     *     SNI</a> on the server side.
-     */
-    public QuicSslContextBuilder sni(Mapping<? super String, ? extends QuicSslContext> mapping) {
-        if (!forServer) {
-            throw new UnsupportedOperationException("Only supported for server");
-        }
-        this.mapping = checkNotNull(mapping, "mapping");
         return this;
     }
 

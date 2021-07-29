@@ -513,53 +513,55 @@ void quic_SSL_info_callback(const SSL *ssl, int type, int value) {
 }
 
 int quic_tlsext_servername_callback(SSL *ssl, int *out_alert, void *arg) {
+    SSL_CTX* ctx = SSL_get_SSL_CTX((SSL*) ssl);
+    jobject servernameCallback = SSL_CTX_get_ex_data(ctx, servernameCallbackIdx);
+    if (servernameCallback == NULL) {
+        // No SNI should be used
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+
+    JNIEnv *e = NULL;
+    if (quic_get_java_env(&e) != JNI_OK) {
+        // There is something serious wrong just fail the SSL in a fatal way.
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    jstring servername = NULL;
+    int resultValue = SSL_TLSEXT_ERR_OK;
     int type = SSL_get_servername_type(ssl);
     if (type == TLSEXT_NAMETYPE_host_name) {
-        SSL_CTX* ctx = SSL_get_SSL_CTX((SSL*) ssl);
-        jobject servernameCallback = SSL_CTX_get_ex_data(ctx, servernameCallbackIdx);
-        if (servernameCallback == NULL) {
-            // No SNI should be used
-            return SSL_TLSEXT_ERR_NOACK;
-        }
         const char *name = SSL_get_servername(ssl, type);
-        if (name == NULL) {
-            // No SNI should be used
-            return SSL_TLSEXT_ERR_NOACK;
+        if (name != NULL) {
+            servername = (*e)->NewStringUTF(e, name);
+            if (servername == NULL) {
+                // There is something serious wrong just fail the SSL in a fatal way.
+                return SSL_TLSEXT_ERR_ALERT_FATAL;
+            }
+        } else {
+            // There was no SNI infos provided so not ack at the end.
+            resultValue = SSL_TLSEXT_ERR_NOACK;
         }
-        JNIEnv *e = NULL;
-        if (quic_get_java_env(&e) != JNI_OK) {
-            // There is something serious wrong just fail the SSL in a fatal way.
-            return SSL_TLSEXT_ERR_ALERT_FATAL;
-        }
-
-        jstring servername = (*e)->NewStringUTF(e, name);
-        if (servername == NULL) {
-            // There is something serious wrong just fail the SSL in a fatal way.
-            return SSL_TLSEXT_ERR_ALERT_FATAL;
-        }
-
-        jlong result = (*e)->CallLongMethod(e, servernameCallback, servernameCallbackMethod,
-                 (jlong) ssl, servername);
-
-        if ((*e)->ExceptionCheck(e) == JNI_TRUE) {
-            // Some exception was thrown. Let's fail.
-            (*e)->ExceptionClear(e);
-            return SSL_TLSEXT_ERR_ALERT_FATAL;
-        }
-        if (result < 0) {
-            // If we returned a negative number we want to fail.
-            return SSL_TLSEXT_ERR_ALERT_FATAL;
-        }
-
-        // Change the ctx to the one that was returned.
-        SSL_CTX* newCtx = SSL_set_SSL_CTX(ssl, (SSL_CTX*) result);
-        if (newCtx == NULL) {
-            // Setting the SSL_CTX failed.
-            return SSL_TLSEXT_ERR_ALERT_FATAL;
-        }
-        return SSL_TLSEXT_ERR_OK;
     }
-    return SSL_TLSEXT_ERR_NOACK;
+
+    jlong result = (*e)->CallLongMethod(e, servernameCallback, servernameCallbackMethod, (jlong) ssl, servername);
+
+    if ((*e)->ExceptionCheck(e) == JNI_TRUE) {
+        // Some exception was thrown. Let's fail.
+        (*e)->ExceptionClear(e);
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+    if (result < 0) {
+        // If we returned a negative number we want to fail.
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    // Change the ctx to the one that was returned.
+    SSL_CTX* newCtx = SSL_set_SSL_CTX(ssl, (SSL_CTX*) result);
+    if (newCtx == NULL) {
+        // Setting the SSL_CTX failed.
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+    return resultValue;
 }
 
 static jlong netty_boringssl_SSLContext_new0(JNIEnv* env, jclass clazz, jboolean server, jbyteArray alpn_protos, jobject handshakeCompleteCallback, jobject certificateCallback, jobject verifyCallback, jobject servernameCallback, jint verifyMode, jobjectArray subjectNames) {
