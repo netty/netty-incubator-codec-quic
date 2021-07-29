@@ -40,11 +40,18 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
  */
 public final class QuicSslContextBuilder {
 
-    private static final X509ExtendedKeyManager DUMMY_KEYMANAGER = new X509ExtendedKeyManager() {
+    /**
+     * Special {@link X509ExtendedKeyManager} implementation which will just fail the certificate selection.
+     * This is used as a "dummy" implementation when SNI is used as we should always select an other
+     * {@link QuicSslContext} based on the provided hostname.
+     */
+    private static final X509ExtendedKeyManager SNI_KEYMANAGER = new X509ExtendedKeyManager() {
+        private final X509Certificate[] emptyCerts = new X509Certificate[0];
+        private final String[] emptyStrings = new String[0];
 
         @Override
         public String[] getClientAliases(String keyType, Principal[] issuers) {
-            return new String[0];
+            return emptyStrings;
         }
 
         @Override
@@ -54,7 +61,7 @@ public final class QuicSslContextBuilder {
 
         @Override
         public String[] getServerAliases(String keyType, Principal[] issuers) {
-            return new String[0];
+            return emptyStrings;
         }
 
         @Override
@@ -64,7 +71,7 @@ public final class QuicSslContextBuilder {
 
         @Override
         public X509Certificate[] getCertificateChain(String alias) {
-            return new X509Certificate[0];
+            return emptyCerts;
         }
 
         @Override
@@ -140,7 +147,7 @@ public final class QuicSslContextBuilder {
      *                  to create the {@link Mapping}.
      */
     public static QuicSslContext buildForServerWithSni(Mapping<? super String, ? extends QuicSslContext> mapping) {
-        return forServer(DUMMY_KEYMANAGER, null).sni(mapping).build();
+        return forServer(SNI_KEYMANAGER, null).sni(mapping).build();
     }
 
     private final boolean forServer;
