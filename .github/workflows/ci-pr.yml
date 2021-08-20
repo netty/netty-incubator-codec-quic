@@ -215,6 +215,15 @@ jobs:
       - name: Setup environment
         run: export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
 
+      # Cache .m2/repository
+      # Caching of maven dependencies
+      - uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: pr-android-maven-cache-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            pr-android-maven-cache-
+
       - name: Build project
         run: ./mvnw -B -ntp --file pom.xml clean package -Dandroid
 
