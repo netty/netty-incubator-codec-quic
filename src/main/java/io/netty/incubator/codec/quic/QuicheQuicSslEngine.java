@@ -43,6 +43,7 @@ import java.util.function.LongFunction;
 
 final class QuicheQuicSslEngine extends QuicSslEngine {
     QuicheQuicSslContext ctx;
+    String serverName;
     private final String peerHost;
     private final int peerPort;
     private final QuicheQuicSslSession session = new QuicheQuicSslSession();
@@ -67,10 +68,11 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
         }
     }
 
-    long moveTo(QuicheQuicSslContext ctx) {
+    long moveTo(QuicheQuicSslContext ctx, String serverName) {
         // First of remove the engine from its previous QuicheQuicSslContext.
         this.ctx.remove(this);
         this.ctx = ctx;
+        this.serverName = serverName;
         return ctx.add(this);
     }
 
@@ -244,6 +246,11 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
     @Override
     public boolean getEnableSessionCreation() {
         return false;
+    }
+
+    @Override
+    public String getRemoteServer() {
+        return serverName;
     }
 
     synchronized void handshakeFinished(byte[] id, String cipher, String protocol, byte[] peerCertificate,

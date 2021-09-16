@@ -20,4 +20,11 @@ import javax.net.ssl.SSLEngine;
 /**
  * An {@link SSLEngine} that can be used for QUIC.
  */
-public abstract class QuicSslEngine extends SSLEngine { }
+public abstract class QuicSslEngine extends SSLEngine {
+
+    /**
+     * Return
+     * @return
+     */
+    public abstract String getRemoteServer();
+}
