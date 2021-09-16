@@ -23,8 +23,9 @@ import javax.net.ssl.SSLEngine;
 public abstract class QuicSslEngine extends SSLEngine {
 
     /**
-     * Return
-     * @return
+     * Returns the server name.
+     *
+     * @return the server name.
      */
-    public abstract String getRemoteServer();
+    public abstract String getServerName();
 }

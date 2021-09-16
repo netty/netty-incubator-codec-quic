@@ -249,7 +249,7 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
     }
 
     @Override
-    public String getRemoteServer() {
+    public String getServerName() {
         return serverName;
     }
 
