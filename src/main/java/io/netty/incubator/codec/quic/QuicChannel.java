@@ -21,10 +21,13 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 
 import javax.net.ssl.SSLEngine;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 /**
@@ -171,6 +174,14 @@ public interface QuicChannel extends Channel {
      * @return {@code true} if the connection was closed because of idle timeout, {@code false}.
      */
     boolean isTimedOut();
+
+     /**
+      * Return the {@link SocketAddress} which the {@link Channel} is connected to.
+      *
+      * @return the {@link SocketAddress} which the {@link Channel} is connected to.
+      *         {@code null} if this channel is not connected
+      */
+    SocketAddress getRemote();
 
     /**
      * Creates a stream that is using this {@link QuicChannel} and notifies the {@link Future} once done.
