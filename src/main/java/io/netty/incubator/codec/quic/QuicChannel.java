@@ -21,13 +21,10 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
-import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 
 import javax.net.ssl.SSLEngine;
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 /**
