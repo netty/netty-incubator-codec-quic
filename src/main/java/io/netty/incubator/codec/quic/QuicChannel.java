@@ -178,7 +178,7 @@ public interface QuicChannel extends Channel {
       * @return the {@link SocketAddress} which the {@link Channel} is connected to.
       *         {@code null} if this channel is not connected
       */
-    SocketAddress getRemote();
+    SocketAddress remoteNetworkAddress();
 
     /**
      * Creates a stream that is using this {@link QuicChannel} and notifies the {@link Future} once done.

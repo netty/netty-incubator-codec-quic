@@ -187,7 +187,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     @Override
-    public SocketAddress getRemote() {
+    public SocketAddress remoteNetworkAddress() {
         return remote;
     }
 
