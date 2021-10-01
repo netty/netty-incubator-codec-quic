@@ -172,14 +172,6 @@ public interface QuicChannel extends Channel {
      */
     boolean isTimedOut();
 
-     /**
-      * Return the {@link SocketAddress} which the {@link Channel} is connected to.
-      *
-      * @return the {@link SocketAddress} which the {@link Channel} is connected to.
-      *         {@code null} if this channel is not connected
-      */
-    SocketAddress remoteNetworkAddress();
-
     /**
      * Creates a stream that is using this {@link QuicChannel} and notifies the {@link Future} once done.
      * The {@link ChannelHandler} (if not {@code null}) is added to the {@link io.netty.channel.ChannelPipeline} of the

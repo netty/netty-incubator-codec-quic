@@ -187,11 +187,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     @Override
-    public SocketAddress remoteNetworkAddress() {
-        return remote;
-    }
-
-    @Override
     public SSLEngine sslEngine() {
         QuicheQuicConnection connection = this.connection;
         return connection == null ? null : connection.engine();
