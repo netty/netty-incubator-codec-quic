@@ -228,7 +228,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
 
         putChannel(channel);
         ctx.channel().eventLoop().register(channel);
-        channel.pipeline().fireUserEventTriggered(new QuicRemoteAddressEvent(sender));
+        channel.pipeline().fireUserEventTriggered(new QuicConnectionRemoteAddressEvent(sender));
         return channel;
     }
 }
