@@ -367,8 +367,8 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
             assertNotNull(quicChannel.localAddress());
             assertNotNull(quicChannel.remoteAddress());
 
-            assertNull(serverEventRef.get().from());
-            assertEquals(channel.localAddress(), serverEventRef.get().to());
+            assertNull(serverEventRef.get().oldAddress());
+            assertEquals(channel.localAddress(), serverEventRef.get().newAddress());
 
             QuicChannel accepted;
             while ((accepted = acceptedRef.get()) == null) {

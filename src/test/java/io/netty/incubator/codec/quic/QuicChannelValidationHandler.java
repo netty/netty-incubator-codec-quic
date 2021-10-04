@@ -26,7 +26,7 @@ class QuicChannelValidationHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof QuicConnectionEvent && ((QuicConnectionEvent) evt).from() != null) {
+        if (evt instanceof QuicConnectionEvent && ((QuicConnectionEvent) evt).oldAddress() != null) {
             fail("QuicConnectionEvent indication migration should never happen atm");
         }
         super.userEventTriggered(ctx, evt);
