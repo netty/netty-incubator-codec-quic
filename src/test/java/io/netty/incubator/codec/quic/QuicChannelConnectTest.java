@@ -332,7 +332,7 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
     @Timeout(value = 5000, unit = TimeUnit.MILLISECONDS)
     public void testConnectAndGetAddressesAfterClose() throws Throwable {
         AtomicReference<QuicChannel> acceptedRef = new AtomicReference<>();
-        AtomicReference<QuicConnectionRemoteAddressEvent> serverEventRef = new AtomicReference<>();
+        AtomicReference<QuicConnectionEvent> serverEventRef = new AtomicReference<>();
         Channel server = QuicTestUtils.newServer(
                 new ChannelInboundHandlerAdapter() {
                     @Override
@@ -343,8 +343,8 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
 
                     @Override
                     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-                        if (evt instanceof QuicConnectionRemoteAddressEvent) {
-                            serverEventRef.set((QuicConnectionRemoteAddressEvent) evt);
+                        if (evt instanceof QuicConnectionEvent) {
+                            serverEventRef.set((QuicConnectionEvent) evt);
                         }
                         super.userEventTriggered(ctx, evt);
                     }
@@ -367,7 +367,8 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
             assertNotNull(quicChannel.localAddress());
             assertNotNull(quicChannel.remoteAddress());
 
-            assertEquals(channel.localAddress(), serverEventRef.get().remoteAddress());
+            assertNull(serverEventRef.get().from());
+            assertEquals(channel.localAddress(), serverEventRef.get().to());
 
             QuicChannel accepted;
             while ((accepted = acceptedRef.get()) == null) {

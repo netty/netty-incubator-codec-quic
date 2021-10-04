@@ -18,14 +18,14 @@ package io.netty.incubator.codec.quic;
 import java.net.SocketAddress;
 
 /**
- * {@link QuicEvent} which is fired when an QUIC connection migration was detected.
+ * {@link QuicEvent} which is fired when an QUIC connection creation or migration was detected.
  */
-public final class QuicConnectionMigrationEvent implements QuicEvent {
+public final class QuicConnectionEvent implements QuicEvent {
 
     private final SocketAddress from;
     private final SocketAddress to;
 
-    QuicConnectionMigrationEvent(SocketAddress from, SocketAddress to) {
+    QuicConnectionEvent(SocketAddress from, SocketAddress to) {
         this.from = from;
         this.to = to;
     }
