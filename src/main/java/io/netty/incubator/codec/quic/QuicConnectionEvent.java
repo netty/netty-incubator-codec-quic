@@ -31,7 +31,7 @@ public final class QuicConnectionEvent implements QuicEvent {
     }
 
     /**
-     * The old {@link SocketAddress} of the connection or {@code null} if connection just created.
+     * The old {@link SocketAddress} of the connection or {@code null} if the connection was just created.
      *
      * @return the old {@link SocketAddress} of the connection.
      */
