@@ -34,6 +34,8 @@ public final class QuicConnectionAddress extends SocketAddress {
      */
     public static final QuicConnectionAddress EPHEMERAL = new QuicConnectionAddress((ByteBuffer) null, false);
 
+    private final String toStr;
+
     // Accessed by QuicheQuicheChannel
     final ByteBuffer connId;
 
@@ -66,20 +68,22 @@ public final class QuicConnectionAddress extends SocketAddress {
                     + Quiche.QUICHE_MAX_CONN_ID_LEN);
         }
         this.connId = connId;
+        if (connId == null) {
+            toStr = "QuicConnectionAddress{EPHEMERAL}";
+        } else {
+            ByteBuf buffer = Unpooled.wrappedBuffer(connId);
+            try {
+                toStr = "QuicConnectionAddress{" +
+                        "connId=" + ByteBufUtil.hexDump(buffer) + '}';
+            } finally {
+                buffer.release();
+            }
+        }
     }
 
     @Override
     public String toString() {
-        if (this == EPHEMERAL) {
-            return "QuicConnectionAddress{EPHEMERAL}";
-        }
-        ByteBuf buffer = Unpooled.wrappedBuffer(connId);
-        try {
-            return "QuicConnectionAddress{" +
-                    "connId=" + ByteBufUtil.hexDump(buffer) + '}';
-        } finally {
-            buffer.release();
-        }
+        return toStr;
     }
 
     @Override
