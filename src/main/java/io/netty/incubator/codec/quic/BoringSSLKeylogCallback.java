@@ -19,8 +19,9 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 final class BoringSSLKeylogCallback {
-    private final InternalLogger logger = InternalLoggerFactory.getInstance(BoringSSLKeylogCallback.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(BoringSSLKeylogCallback.class);
 
+    @SuppressWarnings("unused")
     void logKey(long ssl, String keylog) {
         logger.debug(keylog);
     }

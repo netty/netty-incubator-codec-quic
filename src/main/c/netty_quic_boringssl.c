@@ -588,6 +588,9 @@ void keylog_callback(const SSL* ssl, const char* line) {
     jstring keyString = NULL;
     if (line != NULL) {
         keyString = (*e)->NewStringUTF(e, line);
+        if (keyString == NULL) {
+            return;
+        }
     }
 
     // Execute the java callback
@@ -718,7 +721,7 @@ static void netty_boringssl_SSLContext_free(JNIEnv* env, jclass clazz, jlong ctx
 
     jobject keylogCallbackRef = SSL_CTX_get_ex_data(ssl_ctx, keylogCallbackIdx);
     if (keylogCallbackRef != NULL) {
-        (*env)->DeleteLocalRef(env, keylogCallbackRef);
+        (*env)->DeleteGlobalRef(env, keylogCallbackRef);
     }
 
     alpn_data* data = SSL_CTX_get_ex_data(ssl_ctx, alpn_data_idx);
