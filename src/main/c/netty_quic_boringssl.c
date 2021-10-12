@@ -707,16 +707,16 @@ static void netty_boringssl_SSLContext_free(JNIEnv* env, jclass clazz, jlong ctx
     }
     jobject verifyCallbackRef = SSL_CTX_get_ex_data(ssl_ctx, verifyCallbackIdx);
     if (verifyCallbackRef != NULL) {
-        (*env)->DeleteLocalRef(env, verifyCallbackRef);
+        (*env)->DeleteGlobalRef(env, verifyCallbackRef);
     }
     jobject certificateCallbackRef = SSL_CTX_get_ex_data(ssl_ctx, certificateCallbackIdx);
     if (certificateCallbackRef != NULL) {
-        (*env)->DeleteLocalRef(env, certificateCallbackRef);
+        (*env)->DeleteGlobalRef(env, certificateCallbackRef);
     }
 
     jobject servernameCallbackRef = SSL_CTX_get_ex_data(ssl_ctx, servernameCallbackIdx);
     if (servernameCallbackRef != NULL) {
-        (*env)->DeleteLocalRef(env, servernameCallbackRef);
+        (*env)->DeleteGlobalRef(env, servernameCallbackRef);
     }
 
     jobject keylogCallbackRef = SSL_CTX_get_ex_data(ssl_ctx, keylogCallbackIdx);
