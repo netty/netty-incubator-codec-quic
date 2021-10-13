@@ -180,7 +180,11 @@ public final class QuicSslContextBuilder {
     }
 
     /**
-     * Enable / disable keylog
+     * Enable / disable keylog. When enabled, TLS keys are logged to an internal logger named
+     * "io.netty.incubator.codec.quic.BoringSSLKeylogCallback" with DEBUG level, see
+     * {@link io.netty.incubator.codec.quic.BoringSSLKeylogCallback} for detail, logging keys are following
+     * <a href="https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format">
+     *     NSS Key Log Format</a>. This is intended for debugging use with tools like Wireshark.
      */
     public QuicSslContextBuilder keylog(boolean enabled) {
         this.keylog = enabled;
