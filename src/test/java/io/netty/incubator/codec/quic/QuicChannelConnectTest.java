@@ -148,7 +148,7 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
         testKeylog(false);
     }
 
-    private void testKeylog(boolean enable) throws Throwable {
+    private static void testKeylog(boolean enable) throws Throwable {
         TestLogBackAppender.clearLogs();
         QuicChannelValidationHandler serverValidationHandler = new QuicChannelValidationHandler();
         QuicChannelValidationHandler clientValidationHandler = new QuicChannelValidationHandler();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Netty Project
+ * Copyright 2021 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -18,11 +18,11 @@ package io.netty.incubator.codec.quic;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-public class TestLogBackAppender extends AppenderBase<ILoggingEvent> {
-    private static final List<String> logs = new ArrayList<>();
+public final class TestLogBackAppender extends AppenderBase<ILoggingEvent> {
+    private static final List<String> logs = new CopyOnWriteArrayList<>();
 
     @Override
     protected void append(ILoggingEvent iLoggingEvent) {
