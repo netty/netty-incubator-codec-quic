@@ -335,6 +335,14 @@ static jbyteArray netty_quiche_conn_destination_id(JNIEnv* env, jclass clazz, jl
     return to_byte_array(env, id, len);
 }
 
+static jbyteArray netty_quiche_conn_session(JNIEnv* env, jclass clazz, jlong conn) {
+    const uint8_t *id = NULL;
+    size_t len = 0;
+
+    quiche_conn_session((quiche_conn *) conn, &id, &len);
+    return to_byte_array(env, id, len);
+}
+
 static jint netty_quiche_conn_recv(JNIEnv* env, jclass clazz, jlong conn, jlong buf, jint buf_len, jlong info) {
     return (jint) quiche_conn_recv((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len, (quiche_recv_info*) info);
 }
@@ -480,6 +488,12 @@ static jint netty_quiche_conn_dgram_recv(JNIEnv* env, jclass clazz, jlong conn, 
 
 static jint netty_quiche_conn_dgram_send(JNIEnv* env, jclass clazz, jlong conn, jlong buf, jint buf_len) {
     return (jint) quiche_conn_dgram_send((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len);
+}
+
+static jint netty_quiche_conn_set_session(JNIEnv* env, jclass clazz, jlong conn, jbyteArray sessionBytes) {
+    int buf_len = (*env)->GetArrayLength(env, sessionBytes);
+    uint8_t* buf = (uint8_t*) (*env)->GetByteArrayElements(env, sessionBytes, 0);
+    return (jint) quiche_conn_set_session((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len);
 }
 
 static jlong netty_quiche_config_new(JNIEnv* env, jclass clazz, jint version) {
@@ -685,6 +699,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "quiche_conn_trace_id", "(J)[B", (void *) netty_quiche_conn_trace_id },
   { "quiche_conn_source_id", "(J)[B", (void *) netty_quiche_conn_source_id },
   { "quiche_conn_destination_id", "(J)[B", (void *) netty_quiche_conn_destination_id },
+  { "quiche_conn_session", "(J)[B", (void *) netty_quiche_conn_session },
   { "quiche_conn_new_with_tls", "(JIJIJIJJZ)J", (void *) netty_quiche_conn_new_with_tls },
   { "quiche_conn_recv", "(JJIJ)I", (void *) netty_quiche_conn_recv },
   { "quiche_conn_send", "(JJIJ)I", (void *) netty_quiche_conn_send },
@@ -713,6 +728,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "quiche_conn_dgram_recv_front_len", "(J)I", (void* ) netty_quiche_conn_dgram_recv_front_len },
   { "quiche_conn_dgram_recv", "(JJI)I", (void* ) netty_quiche_conn_dgram_recv },
   { "quiche_conn_dgram_send", "(JJI)I", (void* ) netty_quiche_conn_dgram_send },
+  { "quiche_conn_set_session", "(J[B)I", (void* ) netty_quiche_conn_set_session },
   { "quiche_config_new", "(I)J", (void *) netty_quiche_config_new },
   { "quiche_config_enable_dgram", "(JZII)V", (void *) netty_quiche_config_enable_dgram },
   { "quiche_config_grease", "(JZ)V", (void *) netty_quiche_config_grease },

@@ -43,11 +43,12 @@ final class BoringSSL {
                                BoringSSLCertificateVerifyCallback verifyCallback,
                                BoringSSLTlsextServernameCallback servernameCallback,
                                BoringSSLKeylogCallback keylogCallback,
+                               BoringSSLSessionCallback sessionCallback,
                                int verifyMode,
                                byte[][] subjectNames) {
         return SSLContext_new0(server, toWireFormat(applicationProtocols),
-                handshakeCompleteCallback,
-                certificateCallback, verifyCallback, servernameCallback, keylogCallback, verifyMode, subjectNames);
+                handshakeCompleteCallback, certificateCallback, verifyCallback, servernameCallback,
+                keylogCallback, sessionCallback, verifyMode, subjectNames);
     }
 
     private static byte[] toWireFormat(String[] applicationProtocols) {
@@ -70,10 +71,13 @@ final class BoringSSL {
                                                byte[] applicationProtocols, Object handshakeCompleteCallback,
                                                Object certificateCallback, Object verifyCallback,
                                                Object servernameCallback, Object keylogCallback,
+                                               Object sessionCallback,
                                                int verifyDepth, byte[][] subjectNames);
     static native void SSLContext_set_early_data_enabled(long context, boolean enabled);
     static native long SSLContext_setSessionCacheSize(long context, long size);
     static native long SSLContext_setSessionCacheTimeout(long context, long size);
+    static native long SSL_setSession(long ssl, byte[] session);
+    static native byte[] SSL_get_peer_quic_transport_params(long ssl);
     static native void SSLContext_free(long context);
     static long SSL_new(long context, boolean server, String hostname) {
         return SSL_new0(context, server, tlsExtHostName(hostname));

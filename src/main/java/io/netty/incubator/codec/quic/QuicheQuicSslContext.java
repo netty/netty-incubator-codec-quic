@@ -60,6 +60,7 @@ final class QuicheQuicSslContext extends QuicSslContext {
     private final ApplicationProtocolNegotiator apn;
     private long sessionCacheSize;
     private long sessionTimeout;
+    private final QuicSessionProvider sessionProvider;
     private final QuicheQuicSslSessionContext sessionCtx;
     private final QuicheQuicSslEngineMap engineMap = new QuicheQuicSslEngineMap();
     final NativeSslContext nativeSslContext;
@@ -68,7 +69,8 @@ final class QuicheQuicSslContext extends QuicSslContext {
                          ClientAuth clientAuth, TrustManagerFactory trustManagerFactory,
                          KeyManagerFactory keyManagerFactory, String password,
                          Mapping<? super String, ? extends QuicSslContext> mapping,
-                         Boolean earlyData, boolean keylog,
+                         Boolean earlyData, boolean keylog, QuicSessionHandler sessionHandler,
+                         QuicSessionProvider sessionProvider,
                          String... applicationProtocols) {
         Quic.ensureAvailability();
         this.server = server;
@@ -101,11 +103,13 @@ final class QuicheQuicSslContext extends QuicSslContext {
                 new BoringSSLCertificateCallback(engineMap, keyManager, password),
                 new BoringSSLCertificateVerifyCallback(engineMap, trustManager),
                 mapping == null ? null : new BoringSSLTlsextServernameCallback(engineMap, mapping),
-                keylog ? new BoringSSLKeylogCallback() : null, verifyMode,
+                keylog ? new BoringSSLKeylogCallback() : null,
+                sessionHandler == null ? null : new BoringSSLSessionCallback(sessionHandler), verifyMode,
                 BoringSSL.subjectNames(trustManager.getAcceptedIssuers())));
         apn = new QuicheQuicApplicationProtocolNegotiator(applicationProtocols);
         this.sessionCacheSize = BoringSSL.SSLContext_setSessionCacheSize(nativeSslContext.address(), sessionCacheSize);
         this.sessionTimeout = BoringSSL.SSLContext_setSessionCacheTimeout(nativeSslContext.address(), sessionTimeout);
+        this.sessionProvider = sessionProvider;
         if (earlyData != null) {
             BoringSSL.SSLContext_set_early_data_enabled(nativeSslContext.address(), earlyData);
         }
@@ -197,6 +201,10 @@ final class QuicheQuicSslContext extends QuicSslContext {
     void remove(QuicheQuicSslEngine engine) {
         QuicheQuicSslEngine removed = engineMap.remove(engine.connection.ssl);
         assert removed == engine;
+    }
+
+    public QuicSessionProvider getSessionProvider() {
+        return sessionProvider;
     }
 
     @Override

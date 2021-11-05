@@ -143,6 +143,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private volatile QuicheQuicConnection connection;
     private volatile QuicConnectionAddress remoteIdAddr;
     private volatile QuicConnectionAddress localIdAdrr;
+    private EarlyDataSendCallback earlyDataSendCallback;
 
     private static final AtomicLongFieldUpdater<QuicheQuicChannel> UNI_STREAMS_LEFT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(QuicheQuicChannel.class, "uniStreamsLeft");
@@ -155,7 +156,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private QuicheQuicChannel(Channel parent, boolean server, ByteBuffer key,
                       InetSocketAddress remote, boolean supportsDatagram, ChannelHandler streamHandler,
                               Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
-                              Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray) {
+                              Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray,
+                              EarlyDataSendCallback earlyDataSendCallback) {
         super(parent);
         config = new QuicheQuicChannelConfig(this);
         this.server = server;
@@ -169,13 +171,15 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         this.streamHandler = streamHandler;
         this.streamOptionsArray = streamOptionsArray;
         this.streamAttrsArray = streamAttrsArray;
+        this.earlyDataSendCallback = earlyDataSendCallback;
     }
 
     static QuicheQuicChannel forClient(Channel parent, InetSocketAddress remote, ChannelHandler streamHandler,
                                        Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
-                                       Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray) {
+                                       Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray,
+                                       EarlyDataSendCallback earlyDataSendCallback) {
         return new QuicheQuicChannel(parent, false, null, remote, false, streamHandler,
-                streamOptionsArray, streamAttrsArray);
+                streamOptionsArray, streamAttrsArray, earlyDataSendCallback);
     }
 
     static QuicheQuicChannel forServer(Channel parent, ByteBuffer key, InetSocketAddress remote,
@@ -183,7 +187,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                                        Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
                                        Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray) {
         return new QuicheQuicChannel(parent, true, key, remote, supportsDatagram,
-                streamHandler, streamOptionsArray, streamAttrsArray);
+                streamHandler, streamOptionsArray, streamAttrsArray, null);
     }
 
     @Override
@@ -284,6 +288,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 return;
             }
             attachQuicheConnection(connection);
+            QuicSessionProvider sessionProvider = quicheEngine.ctx.getSessionProvider();
+            if (sessionProvider != null) {
+                byte[] sessionBytes = sessionProvider.getSession();
+                if (sessionBytes != null) {
+                    Quiche.quiche_conn_set_session(connection.address(), sessionBytes);
+                }
+            }
             this.supportsDatagram = supportsDatagram;
             key = connectId;
         } finally {
@@ -1438,6 +1449,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     void finishConnect() {
         assert !server;
         if (connectionSend()) {
+            if (earlyDataSendCallback != null) {
+                earlyDataSendCallback.send(this);
+            }
             flushParent();
         }
     }
