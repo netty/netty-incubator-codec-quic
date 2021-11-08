@@ -54,4 +54,13 @@ public interface QuicConnectionIdGenerator {
     static QuicConnectionIdGenerator randomGenerator() {
         return SecureRandomQuicConnectionIdGenerator.INSTANCE;
     }
+
+    /**
+     * Return a {@link QuicConnectionIdGenerator} which generates new connection ids by signing the given input.
+     *
+     * @return a {@link QuicConnectionIdGenerator} which generated ids by signing the given input.
+     */
+    static QuicConnectionIdGenerator signGenerator() {
+        return HmacSignQuicConnectionIdGenerator.INSTANCE;
+    }
 }
