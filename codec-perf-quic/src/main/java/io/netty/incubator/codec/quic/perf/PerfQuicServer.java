@@ -9,6 +9,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.FixedRecvByteBufAllocator;
+import io.netty.channel.SelectStrategy;
+import io.netty.channel.SelectStrategyFactory;
 import io.netty.channel.WriteBufferWaterMark;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollDatagramChannel;
@@ -31,6 +33,7 @@ import io.netty.incubator.codec.quic.QuicSslContext;
 import io.netty.incubator.codec.quic.QuicSslContextBuilder;
 import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.incubator.codec.quic.SegmentedDatagramPacketAllocator;
+import io.netty.util.IntSupplier;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -139,7 +142,17 @@ public class PerfQuicServer {
         try {
             switch (transport) {
                 case "epoll":
-                    bs.group(new EpollEventLoopGroup(1))
+                    bs.group(new EpollEventLoopGroup(1, (ThreadFactory) null, new SelectStrategyFactory() {
+                                @Override
+                                public SelectStrategy newSelectStrategy() {
+                                    return new SelectStrategy() {
+                                        @Override
+                                        public int calculateStrategy(IntSupplier selectSupplier, boolean hasTasks) {
+                                            return SelectStrategy.BUSY_WAIT;
+                                        }
+                                    };
+                                }
+                            }))
                             .channel(EpollDatagramChannel.class)
                             .handler(codecBuilder.option(QuicChannelOption.SEGMENTED_DATAGRAM_PACKET_ALLOCATOR,
                                     EpollQuicUtils.newSegmentedAllocator(segments)).build())
