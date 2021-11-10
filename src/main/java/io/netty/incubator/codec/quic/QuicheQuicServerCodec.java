@@ -98,8 +98,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
                                                ByteBuf scid, ByteBuf dcid, ByteBuf token) throws Exception {
         ByteBuffer dcidByteBuffer = dcid.internalNioBuffer(dcid.readerIndex(), dcid.readableBytes());
         QuicheQuicChannel channel = getChannel(dcidByteBuffer);
-        if (channel == null && type == QuicPacketType.ZERO_RTT
-                && connectionIdAddressGenerator instanceof HmacSignQuicConnectionIdGenerator) {
+        if (channel == null && type == QuicPacketType.ZERO_RTT && connectionIdAddressGenerator.isIdempotent()) {
             // 0 rtt packet should obtain the server generated dcid
             channel = getChannel(connectionIdAddressGenerator.newId(dcidByteBuffer, localConnIdLength));
         }

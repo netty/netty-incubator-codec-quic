@@ -50,6 +50,14 @@ public interface QuicConnectionIdGenerator {
     int maxConnectionIdLength();
 
     /**
+     * Returns true if the implementation is idempotent, which means we will get the same id
+     * with the same input ByteBuffer. Otherwise, returns false.
+     *
+     * @return whether the implementation is idempotent.
+     */
+    boolean isIdempotent();
+
+    /**
      * Return a {@link QuicConnectionIdGenerator} which randomly generates new connection ids.
      *
      * @return a {@link QuicConnectionIdGenerator} which randomly generated ids.
