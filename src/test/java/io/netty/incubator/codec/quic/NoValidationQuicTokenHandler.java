@@ -20,7 +20,7 @@ import java.net.InetSocketAddress;
 import io.netty.buffer.ByteBuf;
 
 /**
- * A {@link QuicTokenHandler} which disable token validation
+ * A {@link QuicTokenHandler} which disables token validation.
  */
 public final class NoValidationQuicTokenHandler implements QuicTokenHandler {
 

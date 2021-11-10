@@ -25,7 +25,7 @@ import org.apache.commons.codec.digest.HmacUtils;
 
 /**
  * A {@link QuicConnectionIdGenerator} which creates new connection id by signing the given input
- * using hmac algorithms
+ * using hmac algorithms.
  */
 final class HmacSignQuicConnectionIdGenerator implements QuicConnectionIdGenerator {
     static final QuicConnectionIdGenerator INSTANCE = new HmacSignQuicConnectionIdGenerator();
@@ -40,7 +40,8 @@ final class HmacSignQuicConnectionIdGenerator implements QuicConnectionIdGenerat
 
     @Override
     public ByteBuffer newId(int length) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(
+                "HmacSignQuicConnectionIdGenerator should always have an input to sign with");
     }
 
     @Override
