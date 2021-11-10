@@ -22,6 +22,7 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.incubator.channel.uring.IOUringChannelOption;
 import io.netty.incubator.channel.uring.IOUringDatagramChannel;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
+import io.netty.incubator.channel.uring.Native;
 import io.netty.incubator.codec.quic.EpollQuicUtils;
 import io.netty.incubator.codec.quic.InsecureQuicTokenHandler;
 import io.netty.incubator.codec.quic.QuicChannel;
@@ -37,6 +38,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 public class PerfQuicServer {
@@ -158,7 +160,7 @@ public class PerfQuicServer {
                                     new WriteBufferWaterMark(Integer.MAX_VALUE, Integer.MAX_VALUE));
                     break;
                 case "io_uring":
-                    bs.group(new IOUringEventLoopGroup(1))
+                    bs.group(new IOUringEventLoopGroup(1, (ThreadFactory) null,64, 20))
                             .channel(IOUringDatagramChannel.class)
                             .handler(codecBuilder.option(QuicChannelOption.SEGMENTED_DATAGRAM_PACKET_ALLOCATOR,
                                     new SegmentedDatagramPacketAllocator() {
