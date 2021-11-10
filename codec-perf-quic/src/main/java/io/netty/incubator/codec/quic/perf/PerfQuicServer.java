@@ -49,6 +49,7 @@ public class PerfQuicServer {
         String transport = args.length >= 1 ? args[0] : "nio";
         int chunkSize = args.length >= 2 ? Integer.parseInt(args[1]) : 2048;
         int segments = args.length >= 3 ? Integer.parseInt(args[2]) : 16;
+        int ringSize = args.length >= 4 ? Integer.parseInt(args[3]) : 0;
 
         LOGGER.info("Using transport: " + transport + " chunkSize: " + chunkSize + " segments: " + segments);
         SelfSignedCertificate selfSignedCertificate = new SelfSignedCertificate();
@@ -158,7 +159,7 @@ public class PerfQuicServer {
                                     new WriteBufferWaterMark(Integer.MAX_VALUE, Integer.MAX_VALUE));
                     break;
                 case "io_uring":
-                    bs.group(new IOUringEventLoopGroup(1, (ThreadFactory) null,64, 20))
+                    bs.group(new IOUringEventLoopGroup(1, (ThreadFactory) null,ringSize, 20))
                             .channel(IOUringDatagramChannel.class)
                             .handler(codecBuilder.option(QuicChannelOption.SEGMENTED_DATAGRAM_PACKET_ALLOCATOR,
                                     new SegmentedDatagramPacketAllocator() {
