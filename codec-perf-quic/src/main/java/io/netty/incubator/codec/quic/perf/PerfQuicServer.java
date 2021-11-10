@@ -46,9 +46,11 @@ public class PerfQuicServer {
     private PerfQuicServer() { }
 
     public static void main(String[] args) throws Exception {
-        int chunkSize = SystemPropertyUtil.getInt("chunkSize", 2048);
-        int segments =  SystemPropertyUtil.getInt("segments", 16);
-        String transport = SystemPropertyUtil.get("transport", "nio");
+        String transport = args.length >= 1 ? args[0] : "nio";
+        int chunkSize = args.length >= 2 ? Integer.parseInt(args[1]) : 2048;
+        int segments = args.length >= 3 ? Integer.parseInt(args[2]) : 16;
+
+        LOGGER.info("Using transport: " + transport + " chunkSize: " + chunkSize + " segments: " + segments);
         SelfSignedCertificate selfSignedCertificate = new SelfSignedCertificate();
         QuicSslContext context = QuicSslContextBuilder.forServer(
                         selfSignedCertificate.privateKey(), null, selfSignedCertificate.certificate())
