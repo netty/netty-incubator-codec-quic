@@ -10,12 +10,12 @@ import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.incubator.channel.uring.IOUringChannelOption;
 import io.netty.incubator.channel.uring.IOUringDatagramChannel;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -91,11 +91,15 @@ public class PerfUdp {
                         .group(new EpollEventLoopGroup(1))
                         .option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(32 * 512))
                         .option(EpollChannelOption.MAX_DATAGRAM_PAYLOAD_SIZE, 512);
+                break;
             case "io_uring":
                 bootstrap.channel(IOUringDatagramChannel.class)
                         .group(new IOUringEventLoopGroup(1))
                         .option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(32 * 512))
                         .option(IOUringChannelOption.MAX_DATAGRAM_PAYLOAD_SIZE, 512);
+                break;
+            default:
+                throw new IllegalArgumentException();
         }
         Channel channel = bootstrap.bind(address).syncUninterruptibly().channel();
 
