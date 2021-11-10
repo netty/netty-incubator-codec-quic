@@ -68,6 +68,7 @@
   <modules>
     <module>codec-classes-quic</module>
     <module>codec-native-quic</module>
+    <module>codec-perf-quic</module>
   </modules>
   <properties>
     <javaModuleName/>
