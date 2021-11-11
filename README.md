@@ -7,7 +7,7 @@ This is a new experimental QUIC codec for netty which makes use of [quiche](http
 ## How to include the dependency
 
 To include the dependency you need to ensure you also specify the right classifier. At the moment we only support Linux
- x86_64, macOS / OSX x86_64 and Windows x86_64 but this may change. 
+ x86_64 and aarch64, macOS / OSX x86_64, Windows x86_64 and Android but this may change.
  
 As an example this is how you would include the dependency in maven:
 For Linux x86_64:
@@ -39,6 +39,20 @@ For Windows:
     <artifactId>netty-incubator-codec-quic</artifactId>
     <version>0.0.17.Final</version>
     <classifier>windows-x86_64</classifier>
+</dependency>
+```
+
+For Android:
+
+It's a single dependency that contains the following [ABI](https://developer.android.com/ndk/guides/abis): `armeabi-v7a`, `arm64-v8a`, `x86`, `x86-64`.
+If you don't need all ABI in your application, check out [abiFilters](https://developer.android.com/ndk/guides/abis#gc).
+
+```
+<dependency>
+    <groupId>io.netty.incubator</groupId>
+    <artifactId>netty-incubator-codec-quic</artifactId>
+    <version>0.0.16.Final</version>
+    <classifier>android</classifier>
 </dependency>
 ```
 

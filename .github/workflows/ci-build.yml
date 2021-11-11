@@ -151,6 +151,13 @@ jobs:
       - name: Build project
         run: ./mvnw.cmd -B -ntp --file pom.xml clean package
 
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results-pr-windows-x86_64
+          path: '**/target/surefire-reports/TEST-*.xml'
+
       - uses: actions/upload-artifact@v2
         if: ${{ failure() }}
         with:
@@ -198,6 +205,14 @@ jobs:
 
       - name: Setup environment
         run: export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+
+      # Cache .m2/repository
+      - uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: android-maven-cache-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            android-maven-cache-
 
       - name: Build project
         run: ./mvnw -B -ntp --file pom.xml clean package -Dandroid
