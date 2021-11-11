@@ -23,6 +23,7 @@ import io.netty.incubator.channel.uring.IOUringChannelOption;
 import io.netty.incubator.channel.uring.IOUringDatagramChannel;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.codec.quic.EpollQuicUtils;
+import io.netty.incubator.codec.quic.FlushStrategy;
 import io.netty.incubator.codec.quic.InsecureQuicTokenHandler;
 import io.netty.incubator.codec.quic.QuicChannel;
 import io.netty.incubator.codec.quic.QuicChannelOption;
@@ -68,6 +69,12 @@ public class PerfQuicServer {
                 .maxRecvUdpPayloadSize(1350)
                 .maxSendUdpPayloadSize(1350)
                 .activeMigration(false)
+                .flushStrategy(new FlushStrategy() {
+                    @Override
+                    public boolean shouldFlushNow(int numPackets, int numBytes) {
+                        return numPackets >= 20 || numBytes >= 20 * 1350;
+                    }
+                })
                 // Setup a token handler. In a production system you would want to implement and provide your custom
                 // one.
                 .tokenHandler(InsecureQuicTokenHandler.INSTANCE)
@@ -141,8 +148,10 @@ public class PerfQuicServer {
                 case "epoll":
                     bs.group(new EpollEventLoopGroup(1))
                             .channel(EpollDatagramChannel.class)
-                            .handler(codecBuilder.option(QuicChannelOption.SEGMENTED_DATAGRAM_PACKET_ALLOCATOR,
-                                    EpollQuicUtils.newSegmentedAllocator(segments)).build())
+                            .handler(codecBuilder
+                                    .option(QuicChannelOption.SEGMENTED_DATAGRAM_PACKET_ALLOCATOR,
+                                            EpollQuicUtils.newSegmentedAllocator(segments))
+                                    .build())
                             .option(EpollChannelOption.MAX_DATAGRAM_PAYLOAD_SIZE, 1500)
                             .option(ChannelOption.MAX_MESSAGES_PER_READ, Integer.MAX_VALUE)
                             .option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(1500 * 16))
@@ -159,7 +168,7 @@ public class PerfQuicServer {
                                     new WriteBufferWaterMark(Integer.MAX_VALUE, Integer.MAX_VALUE));
                     break;
                 case "io_uring":
-                    bs.group(new IOUringEventLoopGroup(1, (ThreadFactory) null,ringSize, 20))
+                    bs.group(new IOUringEventLoopGroup(1, (ThreadFactory) null, ringSize, 20))
                             .channel(IOUringDatagramChannel.class)
                             .handler(codecBuilder.option(QuicChannelOption.SEGMENTED_DATAGRAM_PACKET_ALLOCATOR,
                                     new SegmentedDatagramPacketAllocator() {
@@ -173,7 +182,8 @@ public class PerfQuicServer {
                                         public int maxNumSegments() {
                                             return segments;
                                         }
-                                    }).build())
+                                    })
+                                    .build())
                             .option(IOUringChannelOption.MAX_DATAGRAM_PAYLOAD_SIZE, 1500)
                             .option(ChannelOption.MAX_MESSAGES_PER_READ, Integer.MAX_VALUE)
                             .option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(1500 * 16))
