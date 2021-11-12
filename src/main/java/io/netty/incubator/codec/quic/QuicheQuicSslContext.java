@@ -60,17 +60,16 @@ final class QuicheQuicSslContext extends QuicSslContext {
     private final ApplicationProtocolNegotiator apn;
     private long sessionCacheSize;
     private long sessionTimeout;
-    private final QuicSessionProvider sessionProvider;
     private final QuicheQuicSslSessionContext sessionCtx;
     private final QuicheQuicSslEngineMap engineMap = new QuicheQuicSslEngineMap();
+    private final QuicClientSessionCache sessionCache;
     final NativeSslContext nativeSslContext;
 
     QuicheQuicSslContext(boolean server, long sessionTimeout, long sessionCacheSize,
                          ClientAuth clientAuth, TrustManagerFactory trustManagerFactory,
                          KeyManagerFactory keyManagerFactory, String password,
                          Mapping<? super String, ? extends QuicSslContext> mapping,
-                         Boolean earlyData, boolean keylog, QuicSessionHandler sessionHandler,
-                         QuicSessionProvider sessionProvider,
+                         Boolean earlyData, boolean keylog, boolean clientSessionCache,
                          String... applicationProtocols) {
         Quic.ensureAvailability();
         this.server = server;
@@ -97,6 +96,7 @@ final class QuicheQuicSslContext extends QuicSslContext {
         } else {
             keyManager = chooseKeyManager(keyManagerFactory);
         }
+        sessionCache = clientSessionCache ? new QuicClientSessionCache() : null;
         int verifyMode = server ? boringSSLVerifyModeForServer(this.clientAuth) : BoringSSL.SSL_VERIFY_PEER;
         nativeSslContext = new NativeSslContext(BoringSSL.SSLContext_new(server, applicationProtocols,
                 new BoringSSLHandshakeCompleteCallback(engineMap),
@@ -104,12 +104,11 @@ final class QuicheQuicSslContext extends QuicSslContext {
                 new BoringSSLCertificateVerifyCallback(engineMap, trustManager),
                 mapping == null ? null : new BoringSSLTlsextServernameCallback(engineMap, mapping),
                 keylog ? new BoringSSLKeylogCallback() : null,
-                sessionHandler == null ? null : new BoringSSLSessionCallback(sessionHandler), verifyMode,
+                clientSessionCache ? new BoringSSLSessionCallback(engineMap, sessionCache) : null, verifyMode,
                 BoringSSL.subjectNames(trustManager.getAcceptedIssuers())));
         apn = new QuicheQuicApplicationProtocolNegotiator(applicationProtocols);
         this.sessionCacheSize = BoringSSL.SSLContext_setSessionCacheSize(nativeSslContext.address(), sessionCacheSize);
         this.sessionTimeout = BoringSSL.SSLContext_setSessionCacheTimeout(nativeSslContext.address(), sessionTimeout);
-        this.sessionProvider = sessionProvider;
         if (earlyData != null) {
             BoringSSL.SSLContext_set_early_data_enabled(nativeSslContext.address(), earlyData);
         }
@@ -203,8 +202,8 @@ final class QuicheQuicSslContext extends QuicSslContext {
         assert removed == engine;
     }
 
-    public QuicSessionProvider getSessionProvider() {
-        return sessionProvider;
+    public QuicClientSessionCache getSessionCache() {
+        return sessionCache;
     }
 
     @Override

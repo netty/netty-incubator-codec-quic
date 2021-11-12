@@ -288,9 +288,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 return;
             }
             attachQuicheConnection(connection);
-            QuicSessionProvider sessionProvider = quicheEngine.ctx.getSessionProvider();
-            if (sessionProvider != null) {
-                byte[] sessionBytes = sessionProvider.getSession();
+            QuicClientSessionCache sessionCache = quicheEngine.ctx.getSessionCache();
+            if (sessionCache != null) {
+                byte[] sessionBytes = sessionCache
+                        .getSession(quicheEngine.getSession().getPeerHost(), quicheEngine.getSession().getPeerPort());
                 if (sessionBytes != null) {
                     Quiche.quiche_conn_set_session(connection.address(), sessionBytes);
                 }

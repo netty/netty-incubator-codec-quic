@@ -25,26 +25,35 @@ import java.util.Arrays;
 
 final class BoringSSLSessionCallback {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(BoringSSLSessionCallback.class);
-    private final QuicSessionHandler sessionHandler;
+    private final QuicClientSessionCache sessionCache;
+    private final QuicheQuicSslEngineMap engineMap;
 
-    BoringSSLSessionCallback(QuicSessionHandler sessionHandler) {
-        this.sessionHandler = sessionHandler;
+    BoringSSLSessionCallback(QuicheQuicSslEngineMap engineMap, QuicClientSessionCache sessionCache) {
+        this.engineMap = engineMap;
+        this.sessionCache = sessionCache;
     }
 
     @SuppressWarnings("unused")
     void newSession(long ssl, byte[] session) {
+        if (sessionCache == null) {
+            return;
+        }
+
+        QuicheQuicSslEngine engine = engineMap.get(ssl);
+        if (engine == null) {
+            logger.warn("engine is null ssl: {}", ssl);
+            return;
+        }
+
         byte[] peerParams = BoringSSL.SSL_get_peer_quic_transport_params(ssl);
         logger.debug("ssl: {}, session: {}, peerParams: {}", ssl, Arrays.toString(session),
                 Arrays.toString(peerParams));
-        if (sessionHandler != null) {
-            byte[] quicSession = toQuicSession(session, peerParams);
-            if (quicSession != null) {
-                try {
-                    sessionHandler.handleSession(quicSession);
-                } catch (Exception e) {
-                    logger.error("handler session error, ssl: {}, session: {}", ssl, Arrays.toString(quicSession), e);
-                }
-            }
+
+        byte[] quicSession = toQuicSession(session, peerParams);
+        if (quicSession != null) {
+            logger.info("save session host={}, port={}",
+                    engine.getSession().getPeerHost(), engine.getSession().getPeerPort());
+            sessionCache.saveSession(engine.getSession().getPeerHost(), engine.getSession().getPeerPort(), quicSession);
         }
     }
 

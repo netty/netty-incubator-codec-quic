@@ -160,8 +160,7 @@ public final class QuicSslContextBuilder {
     private String[] applicationProtocols;
     private Boolean earlyData;
     private boolean keylog;
-    private QuicSessionHandler sessionHandler;
-    private QuicSessionProvider sessionProvider;
+    private boolean clientSessionCache;
     private Mapping<? super String, ? extends QuicSslContext> mapping;
 
     private QuicSslContextBuilder(boolean forServer) {
@@ -182,18 +181,10 @@ public final class QuicSslContextBuilder {
     }
 
     /**
-     * Enable ssl client session logging
+     * Enable / disable client session cache.
      */
-    public QuicSslContextBuilder sessionHandler(QuicSessionHandler handler) {
-        this.sessionHandler = handler;
-        return this;
-    }
-
-    /**
-     * Enable ssl client session resumption
-     */
-    public QuicSslContextBuilder sessionProvider(QuicSessionProvider provider) {
-        this.sessionProvider = provider;
+    public QuicSslContextBuilder clientSessionCache(boolean enabled) {
+        this.clientSessionCache = enabled;
         return this;
     }
 
@@ -366,10 +357,10 @@ public final class QuicSslContextBuilder {
     public QuicSslContext build() {
         if (forServer) {
             return new QuicheQuicSslContext(true, sessionCacheSize, sessionTimeout, clientAuth, trustManagerFactory,
-                    keyManagerFactory, keyPassword, mapping, earlyData, keylog, null, null, applicationProtocols);
+                    keyManagerFactory, keyPassword, mapping, earlyData, keylog, false, applicationProtocols);
         } else {
             return new QuicheQuicSslContext(false, sessionCacheSize, sessionTimeout, clientAuth, trustManagerFactory,
-                    keyManagerFactory, keyPassword, mapping, earlyData, keylog, sessionHandler, sessionProvider,
+                    keyManagerFactory, keyPassword, mapping, earlyData, keylog, clientSessionCache,
                     applicationProtocols);
         }
     }

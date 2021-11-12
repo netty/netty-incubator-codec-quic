@@ -32,8 +32,6 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.incubator.codec.quic.EarlyDataSendCallback;
 import io.netty.incubator.codec.quic.QuicChannel;
 import io.netty.incubator.codec.quic.QuicClientCodecBuilder;
-import io.netty.incubator.codec.quic.QuicSessionFileHandler;
-import io.netty.incubator.codec.quic.QuicSessionFileProvider;
 import io.netty.incubator.codec.quic.QuicSslContext;
 import io.netty.incubator.codec.quic.QuicSslContextBuilder;
 import io.netty.incubator.codec.quic.QuicStreamChannel;
@@ -47,10 +45,7 @@ public final class QuicClientZeroRTTExample {
 
     public static void main(String[] args) throws Exception {
         QuicSslContext context = QuicSslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).
-                applicationProtocols("http/0.9").earlyData(true)
-                .sessionHandler(new QuicSessionFileHandler("./session.bin"))
-                .sessionProvider(new QuicSessionFileProvider("./session.bin"))
-                .build();
+                applicationProtocols("http/0.9").earlyData(true).clientSessionCache(true).build();
         NioEventLoopGroup group = new NioEventLoopGroup(1);
         try {
             ChannelHandler codec = new QuicClientCodecBuilder()
