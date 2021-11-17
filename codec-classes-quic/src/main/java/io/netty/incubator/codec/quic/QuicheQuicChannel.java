@@ -113,7 +113,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private final ChannelHandler streamHandler;
     private final Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray;
     private final Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray;
-    //private final TimeoutHandler timeoutHandler = new TimeoutHandler();
     private final TimeoutHandler timeoutHandler;
 
     private boolean inFireChannelReadCompleteQueue;
