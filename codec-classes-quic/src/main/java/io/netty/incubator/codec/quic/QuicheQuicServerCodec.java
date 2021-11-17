@@ -197,12 +197,9 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
             dcid.getBytes(dcid.readerIndex(), bytes);
             key = ByteBuffer.wrap(bytes);
         }
-        //remove channel
-        RemoveChannelRunable runnable=new RemoveChannelRunable();
         QuicheQuicChannel channel = QuicheQuicChannel.forServer(
                 ctx.channel(), key, sender, config.isDatagramSupported(),
-                streamHandler, streamOptionsArray, streamAttrsArray,runnable);
-        runnable.channel=channel;
+                streamHandler, streamOptionsArray, streamAttrsArray, this::removeChannel);
 
         Quic.setupChannel(channel, optionsArray, attrsArray, handler, LOGGER);
         QuicSslEngine engine = sslEngineProvider.apply(channel);
@@ -236,13 +233,5 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
         ctx.channel().eventLoop().register(channel);
         channel.pipeline().fireUserEventTriggered(new QuicConnectionEvent(null, sender));
         return channel;
-    }
-
-    class RemoveChannelRunable implements Runnable{
-        public QuicheQuicChannel channel;
-        @Override
-        public void run() {
-            removeChannel(channel);
-        }
     }
 }

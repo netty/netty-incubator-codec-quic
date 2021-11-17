@@ -72,9 +72,6 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
     }
 
     protected void removeChannel(QuicheQuicChannel channel) {
-        if(channel==null){
-            return;
-        }
         connections.remove(channel.key());
     }
 
