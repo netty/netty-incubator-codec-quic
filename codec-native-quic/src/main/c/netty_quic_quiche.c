@@ -335,14 +335,6 @@ static jbyteArray netty_quiche_conn_destination_id(JNIEnv* env, jclass clazz, jl
     return to_byte_array(env, id, len);
 }
 
-static jbyteArray netty_quiche_conn_session(JNIEnv* env, jclass clazz, jlong conn) {
-    const uint8_t *id = NULL;
-    size_t len = 0;
-
-    quiche_conn_session((quiche_conn *) conn, &id, &len);
-    return to_byte_array(env, id, len);
-}
-
 static jint netty_quiche_conn_recv(JNIEnv* env, jclass clazz, jlong conn, jlong buf, jint buf_len, jlong info) {
     return (jint) quiche_conn_recv((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len, (quiche_recv_info*) info);
 }
@@ -699,7 +691,6 @@ static const JNINativeMethod fixed_method_table[] = {
   { "quiche_conn_trace_id", "(J)[B", (void *) netty_quiche_conn_trace_id },
   { "quiche_conn_source_id", "(J)[B", (void *) netty_quiche_conn_source_id },
   { "quiche_conn_destination_id", "(J)[B", (void *) netty_quiche_conn_destination_id },
-  { "quiche_conn_session", "(J)[B", (void *) netty_quiche_conn_session },
   { "quiche_conn_new_with_tls", "(JIJIJIJJZ)J", (void *) netty_quiche_conn_new_with_tls },
   { "quiche_conn_recv", "(JJIJ)I", (void *) netty_quiche_conn_recv },
   { "quiche_conn_send", "(JJIJ)I", (void *) netty_quiche_conn_send },

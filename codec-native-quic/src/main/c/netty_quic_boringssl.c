@@ -16,7 +16,6 @@
 #include <jni.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <openssl/ssl.h>
@@ -835,28 +834,6 @@ static jlong netty_boringssl_SSLContext_setSessionCacheSize(JNIEnv* env, jclass 
     return 0;
 }
 
-static jlong netty_boringssl_SSL_setSession(JNIEnv* env, jclass clazz, jlong ssl, jbyteArray sessionBytes) {
-    if (sessionBytes != NULL) {
-        SSL_CTX* ctx = SSL_get_SSL_CTX((SSL*) ssl);
-        if (ctx == NULL) {
-            return 1;
-        }
-
-        int data_len = (*env)->GetArrayLength(env, sessionBytes);
-        uint8_t* data = (uint8_t*) (*env)->GetByteArrayElements(env, sessionBytes, 0);
-        SSL_SESSION *session = SSL_SESSION_from_bytes(data, data_len, ctx);
-        if (session == NULL) {
-           return 1;
-        }
-
-        int result = SSL_set_session((SSL*) ssl, session);
-        SSL_SESSION_free(session);
-
-        return result;
-    }
-    return 0;
-}
-
 static void netty_boringssl_SSLContext_set_early_data_enabled(JNIEnv* env, jclass clazz, jlong ctx, jboolean enabled){
     SSL_CTX_set_early_data_enabled((SSL_CTX*) ctx, enabled == JNI_TRUE ? 1 : 0);
 }
@@ -974,7 +951,6 @@ static const JNINativeMethod fixed_method_table[] = {
   { "SSLContext_setSessionCacheTimeout", "(JJ)J", (void *) netty_boringssl_SSLContext_setSessionCacheTimeout },
   { "SSLContext_setSessionCacheSize", "(JJ)J", (void *) netty_boringssl_SSLContext_setSessionCacheSize },
   { "SSLContext_set_early_data_enabled", "(JZ)V", (void *) netty_boringssl_SSLContext_set_early_data_enabled },
-  { "SSL_setSession", "(J[B)J", (void *) netty_boringssl_SSL_setSession },
   { "SSL_get_peer_quic_transport_params", "(J)[B", (void *) netty_boringssl_SSL_get_peer_quic_transport_params },
   { "SSL_new0", "(JZLjava/lang/String;)J", (void *) netty_boringssl_SSL_new0 },
   { "SSL_free", "(J)V", (void *) netty_boringssl_SSL_free },

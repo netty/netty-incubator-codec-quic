@@ -29,13 +29,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ChannelInputShutdownReadComplete;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import io.netty.incubator.codec.quic.EarlyDataSendCallback;
-import io.netty.incubator.codec.quic.QuicChannel;
-import io.netty.incubator.codec.quic.QuicClientCodecBuilder;
-import io.netty.incubator.codec.quic.QuicSslContext;
-import io.netty.incubator.codec.quic.QuicSslContextBuilder;
-import io.netty.incubator.codec.quic.QuicStreamChannel;
-import io.netty.incubator.codec.quic.QuicStreamType;
+import io.netty.incubator.codec.quic.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.NetUtil;
 
@@ -46,10 +40,25 @@ public final class QuicClientZeroRTTExample {
     public static void main(String[] args) throws Exception {
         QuicSslContext context = QuicSslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).
                 applicationProtocols("http/0.9").earlyData(true).clientSessionCache(true).build();
+
+        newChannelAndSendData(context, null);
+        newChannelAndSendData(context, new EarlyDataSendCallback() {
+            @Override
+            public void send(QuicChannel quicChannel) {
+                QuicStreamChannel streamChannel = createStream(quicChannel);
+                if (streamChannel != null) {
+                    streamChannel.writeAndFlush(
+                            Unpooled.copiedBuffer("0rtt stream data\r\n", CharsetUtil.US_ASCII));
+                }
+            }
+        });
+    }
+
+    static void newChannelAndSendData(QuicSslContext context, EarlyDataSendCallback earlyDataSendCallback) throws Exception {
         NioEventLoopGroup group = new NioEventLoopGroup(1);
         try {
             ChannelHandler codec = new QuicClientCodecBuilder()
-                    .sslContext(context)
+                    .sslEngineProvider(q -> context.newEngine(q.alloc(), "localhost", 9999))
                     .maxIdleTimeout(5000, TimeUnit.MILLISECONDS)
                     .initialMaxData(10000000)
                     // As we don't want to support remote initiated streams just setup the limit for local initiated
@@ -63,7 +72,8 @@ public final class QuicClientZeroRTTExample {
                     .handler(codec)
                     .bind(0).sync().channel();
 
-            QuicChannel quicChannel = QuicChannel.newBootstrap(channel)
+
+            QuicChannelBootstrap quicChannelBootstrap = QuicChannel.newBootstrap(channel)
                     .streamHandler(new ChannelInboundHandlerAdapter() {
                         @Override
                         public void channelActive(ChannelHandlerContext ctx) {
@@ -73,24 +83,20 @@ public final class QuicClientZeroRTTExample {
                             ctx.close();
                         }
                     })
-                    .remoteAddress(new InetSocketAddress(NetUtil.LOCALHOST4, 9999))
-                    .earlyDataSendCallBack(new EarlyDataSendCallback() {
-                        @Override
-                        public void send(QuicChannel quicChannel) {
-                            QuicStreamChannel streamChannel = createStream(quicChannel);
-                            if (streamChannel != null) {
-                                streamChannel.writeAndFlush(
-                                        Unpooled.copiedBuffer("0rtt stream data\r\n", CharsetUtil.US_ASCII));
-                            }
-                        }
-                    })
+                    .remoteAddress(new InetSocketAddress(NetUtil.LOCALHOST4, 9999));
+
+            if (earlyDataSendCallback != null) {
+                quicChannelBootstrap.earlyDataSendCallBack(earlyDataSendCallback);
+            }
+
+            QuicChannel quicChannel = quicChannelBootstrap
                     .connect()
                     .get();
 
             QuicStreamChannel streamChannel = createStream(quicChannel);
             // Write the data and send the FIN. After this its not possible anymore to write any more data.
             if (streamChannel != null) {
-                streamChannel.writeAndFlush(Unpooled.copiedBuffer("GET /\r\n", CharsetUtil.US_ASCII))
+                streamChannel.writeAndFlush(Unpooled.copiedBuffer("Bye\r\n", CharsetUtil.US_ASCII))
                         .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
                 streamChannel.closeFuture().sync();
             }
