@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -112,7 +113,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private final ChannelHandler streamHandler;
     private final Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray;
     private final Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray;
-    private final TimeoutHandler timeoutHandler = new TimeoutHandler();
+    private final TimeoutHandler timeoutHandler;
 
     private boolean inFireChannelReadCompleteQueue;
     private boolean fireChannelReadCompletePending;
@@ -130,9 +131,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private boolean recvStreamPending;
     private boolean streamReadable;
-    private boolean inRecv;
-    private boolean inConnectionSend;
-    private boolean inHandleWritableStreams;
+
+    private int reantranceGuard = 0;
+    private static final int IN_RECV = 1 << 1;
+    private static final int IN_CONNECTION_SEND = 1 << 2;
+    private static final int IN_HANDLE_WRITABLE_STREAMS = 1 << 3;
+    private static final int IN_FORCE_CLOSE = 1 << 3;
 
     private static final int CLOSED = 0;
     private static final int OPEN = 1;
@@ -158,6 +162,15 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                               Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
                               Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray,
                               EarlyDataSendCallback earlyDataSendCallback) {
+        this(parent, server, key, remote, supportsDatagram, streamHandler, streamOptionsArray, streamAttrsArray, null,
+                earlyDataSendCallback);
+    }
+
+    private QuicheQuicChannel(Channel parent, boolean server, ByteBuffer key,
+                              InetSocketAddress remote, boolean supportsDatagram, ChannelHandler streamHandler,
+                              Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
+                              Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray,
+                              Consumer<QuicheQuicChannel> timeoutTask, EarlyDataSendCallback earlyDataSendCallback) {
         super(parent);
         config = new QuicheQuicChannelConfig(this);
         this.server = server;
@@ -172,6 +185,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         this.streamOptionsArray = streamOptionsArray;
         this.streamAttrsArray = streamAttrsArray;
         this.earlyDataSendCallback = earlyDataSendCallback;
+        timeoutHandler = new TimeoutHandler(timeoutTask);
     }
 
     static QuicheQuicChannel forClient(Channel parent, InetSocketAddress remote, ChannelHandler streamHandler,
@@ -188,6 +202,15 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                                        Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray) {
         return new QuicheQuicChannel(parent, true, key, remote, supportsDatagram,
                 streamHandler, streamOptionsArray, streamAttrsArray, null);
+    }
+
+    static QuicheQuicChannel forServer(Channel parent, ByteBuffer key, InetSocketAddress remote,
+                                       boolean supportsDatagram, ChannelHandler streamHandler,
+                                       Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
+                                       Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray,
+                                       Consumer<QuicheQuicChannel> timeoutTask) {
+        return new QuicheQuicChannel(parent, true, key, remote, supportsDatagram,
+                streamHandler, streamOptionsArray, streamAttrsArray, timeoutTask, null);
     }
 
     @Override
@@ -339,13 +362,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     void forceClose() {
-        if (isConnDestroyed()) {
+        if (isConnDestroyed() || (reantranceGuard & IN_FORCE_CLOSE) != 0) {
             // Just return if we already destroyed the underlying connection.
             return;
         }
-        // We need to set the connection to null now to guard against reentrancy.
+        reantranceGuard |= IN_FORCE_CLOSE;
+
         QuicheQuicConnection conn = connection;
-        connection = null;
 
         unsafe().close(voidPromise());
         // making sure that connection statistics is avaliable
@@ -371,6 +394,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             timeoutHandler.cancel();
         } finally {
             flushParent();
+            connection = null;
             conn.free();
         }
     }
@@ -762,7 +786,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     void connectionSendAndFlush() {
-        if (inFireChannelReadCompleteQueue || inHandleWritableStreams) {
+        if (inFireChannelReadCompleteQueue || (reantranceGuard & IN_HANDLE_WRITABLE_STREAMS) != 0) {
             return;
         }
         if (connectionSend()) {
@@ -825,7 +849,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         if (isConnDestroyed()) {
             return false;
         }
-        inHandleWritableStreams = true;
+        reantranceGuard |= IN_HANDLE_WRITABLE_STREAMS;
         try {
             long connAddr = connection.address();
             boolean mayNeedWrite = false;
@@ -873,7 +897,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             }
             return mayNeedWrite;
         } finally {
-            inHandleWritableStreams = false;
+            reantranceGuard &= ~IN_HANDLE_WRITABLE_STREAMS;
         }
     }
 
@@ -1065,11 +1089,11 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
      * {@link Channel#flush()} at some point.
      */
     private boolean connectionSend() {
-        if (isConnDestroyed() || inConnectionSend) {
+        if (isConnDestroyed() || (reantranceGuard & IN_CONNECTION_SEND) != 0) {
             return false;
         }
 
-        inConnectionSend = true;
+        reantranceGuard |= IN_CONNECTION_SEND;
         try {
             boolean packetWasWritten;
             SegmentedDatagramPacketAllocator segmentedDatagramPacketAllocator =
@@ -1084,7 +1108,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             }
             return packetWasWritten;
         } finally {
-            inConnectionSend = false;
+            reantranceGuard &= ~IN_CONNECTION_SEND;
         }
     }
 
@@ -1182,7 +1206,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 // See also https://github.com/cloudflare/quiche/issues/817
                 return;
             }
-            inRecv = true;
+
+            reantranceGuard |= IN_RECV;
+
             try {
                 ByteBuf tmpBuffer = null;
                 // We need to make a copy if the buffer is read only as recv(...) may modify the input buffer as well.
@@ -1273,12 +1299,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                     }
                 }
             } finally {
-                inRecv = false;
+                reantranceGuard &= ~IN_RECV;
             }
         }
 
         void recv() {
-            if (inRecv || isConnDestroyed()) {
+            if ((reantranceGuard & IN_RECV) != 0 || isConnDestroyed()) {
                 return;
             }
 
@@ -1289,13 +1315,13 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 return;
             }
 
-            inRecv = true;
+            reantranceGuard |= IN_RECV;
             try {
                 recvDatagram();
                 recvStream();
             } finally {
                 fireChannelReadCompleteIfNeeded();
-                inRecv = false;
+                reantranceGuard &= ~IN_RECV;
             }
         }
 
@@ -1484,6 +1510,11 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private final class TimeoutHandler implements Runnable {
         private ScheduledFuture<?> timeoutFuture;
+        private final Consumer<QuicheQuicChannel> timeoutTask;
+
+        TimeoutHandler(Consumer<QuicheQuicChannel> timeoutTask) {
+            this.timeoutTask = timeoutTask;
+        }
 
         @Override
         public void run() {
@@ -1495,6 +1526,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
                 if (Quiche.quiche_conn_is_closed(connAddr)) {
                     forceClose();
+                    if (timeoutTask != null){
+                        timeoutTask.accept(QuicheQuicChannel.this);
+                    }
                 } else {
                     // We need to call connectionSend when a timeout was triggered.
                     // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send.
