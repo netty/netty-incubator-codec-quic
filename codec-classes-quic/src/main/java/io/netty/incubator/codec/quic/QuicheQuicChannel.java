@@ -147,7 +147,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private volatile QuicheQuicConnection connection;
     private volatile QuicConnectionAddress remoteIdAddr;
     private volatile QuicConnectionAddress localIdAdrr;
-    private EarlyDataSendCallback earlyDataSendCallback;
+    private final EarlyDataSendCallback earlyDataSendCallback;
 
     private static final AtomicLongFieldUpdater<QuicheQuicChannel> UNI_STREAMS_LEFT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(QuicheQuicChannel.class, "uniStreamsLeft");
