@@ -612,6 +612,8 @@ void keylog_callback(const SSL* ssl, const char* line) {
     (*e)->CallVoidMethod(e, keylogCallback, keylogCallbackMethod, (jlong) ssl, keyString);
 }
 
+// Always return 0 as we serialize the session / params to byte[] and so no take ownership.
+// See https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_sess_set_new_cb
 int new_session_callback(SSL *ssl, SSL_SESSION *session) {
     SSL_CTX* ctx = SSL_get_SSL_CTX(ssl);
     if (ctx == NULL) {
@@ -636,26 +638,28 @@ int new_session_callback(SSL *ssl, SSL_SESSION *session) {
     }
 
     jbyteArray sessionBytes = to_byte_array(e, session_data, session_data_len);
+    // We need to explicit free the session_data after we copied it to byte[].
+    // See  https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_SESSION_to_bytes
     OPENSSL_free((void *)session_data);
     if (sessionBytes == NULL) {
         // Get session error
         return 0;
     }
 
-    // Execute the java callback
-    (*e)->CallVoidMethod(e, sessionCallback, sessionCallbackMethod, (jlong) ssl, sessionBytes);
-
-    return 0;
-}
-
-jbyteArray netty_boringssl_SSL_get_peer_quic_transport_params(JNIEnv* env, jclass clazz, jlong ssl) {
+    jbyteArray peerParamsBytes = NULL;
+    // There is not need to explicit free peer_params as it will be freed as soon as SSL*.
+    // See https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_peer_quic_transport_params
     const uint8_t *peer_params = NULL;
     size_t peer_params_len = 0;
     SSL_get_peer_quic_transport_params((SSL*) ssl, &peer_params, &peer_params_len);
     if (peer_params_len != 0) {
-        return to_byte_array(env, (uint8_t *) peer_params, peer_params_len);
+        peerParamsBytes = to_byte_array(e, (uint8_t *) peer_params, peer_params_len);
     }
-    return NULL;
+
+    // Execute the java callback
+    (*e)->CallVoidMethod(e, sessionCallback, sessionCallbackMethod, (jlong) ssl, sessionBytes, peerParamsBytes);
+
+    return 0;
 }
 
 static jlong netty_boringssl_SSLContext_new0(JNIEnv* env, jclass clazz, jboolean server, jbyteArray alpn_protos, jobject handshakeCompleteCallback, jobject certificateCallback, jobject verifyCallback, jobject servernameCallback, jobject keylogCallback, jobject sessionCallback, jint verifyMode, jobjectArray subjectNames) {
@@ -951,7 +955,6 @@ static const JNINativeMethod fixed_method_table[] = {
   { "SSLContext_setSessionCacheTimeout", "(JJ)J", (void *) netty_boringssl_SSLContext_setSessionCacheTimeout },
   { "SSLContext_setSessionCacheSize", "(JJ)J", (void *) netty_boringssl_SSLContext_setSessionCacheSize },
   { "SSLContext_set_early_data_enabled", "(JZ)V", (void *) netty_boringssl_SSLContext_set_early_data_enabled },
-  { "SSL_get_peer_quic_transport_params", "(J)[B", (void *) netty_boringssl_SSL_get_peer_quic_transport_params },
   { "SSL_new0", "(JZLjava/lang/String;)J", (void *) netty_boringssl_SSL_new0 },
   { "SSL_free", "(J)V", (void *) netty_boringssl_SSL_free },
   { "EVP_PKEY_parse", "([BLjava/lang/String;)J", (void *) netty_boringssl_EVP_PKEY_parse },
@@ -1019,7 +1022,7 @@ jint netty_boringssl_JNI_OnLoad(JNIEnv* env, const char* packagePrefix) {
 
     NETTY_JNI_UTIL_PREPEND(packagePrefix, "io/netty/incubator/codec/quic/BoringSSLSessionCallback", name, done);
     NETTY_JNI_UTIL_LOAD_CLASS(env, sessionCallbackClass, name, done);
-    NETTY_JNI_UTIL_GET_METHOD(env, sessionCallbackClass, sessionCallbackMethod, "newSession", "(J[B)V", done);
+    NETTY_JNI_UTIL_GET_METHOD(env, sessionCallbackClass, sessionCallbackMethod, "newSession", "(J[B[B)V", done);
 
     verifyCallbackIdx = SSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);
     certificateCallbackIdx = SSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);

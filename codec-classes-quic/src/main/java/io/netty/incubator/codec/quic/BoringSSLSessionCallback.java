@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.quic;
 
+import io.netty.util.internal.EmptyArrays;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
@@ -34,7 +35,7 @@ final class BoringSSLSessionCallback {
     }
 
     @SuppressWarnings("unused")
-    void newSession(long ssl, byte[] session) {
+    void newSession(long ssl, byte[] session, byte[] peerParams) {
         if (sessionCache == null) {
             return;
         }
@@ -45,19 +46,23 @@ final class BoringSSLSessionCallback {
             return;
         }
 
-        byte[] peerParams = BoringSSL.SSL_get_peer_quic_transport_params(ssl);
-        logger.debug("ssl: {}, session: {}, peerParams: {}", ssl, Arrays.toString(session),
-                Arrays.toString(peerParams));
-
-        byte[] quicSession = toQuicSession(session, peerParams);
+        if (peerParams == null) {
+            peerParams = EmptyArrays.EMPTY_BYTES;
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("ssl: {}, session: {}, peerParams: {}", ssl, Arrays.toString(session),
+                    Arrays.toString(peerParams));
+        }
+        byte[] quicSession = toQuicheQuicSession(session, peerParams);
         if (quicSession != null) {
-            logger.info("save session host={}, port={}",
+            logger.debug("save session host={}, port={}",
                     engine.getSession().getPeerHost(), engine.getSession().getPeerPort());
             sessionCache.saveSession(engine.getSession().getPeerHost(), engine.getSession().getPeerPort(), quicSession);
         }
     }
 
-    private static byte[] toQuicSession(byte[] sslSession, byte[] peerParams) {
+    // Mimic the encoding of quiche: https://github.com/cloudflare/quiche/blob/0.10.0/src/lib.rs#L1668
+    private static byte[] toQuicheQuicSession(byte[] sslSession, byte[] peerParams) {
         if (sslSession != null && peerParams != null) {
             try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
                  DataOutputStream dos = new DataOutputStream(bos)) {

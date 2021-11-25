@@ -169,6 +169,12 @@ public final class QuicChannelBootstrap {
         return this;
     }
 
+    /**
+     * Set the {@link EarlyDataSendCallback} to use.
+     *
+     * @param earlyDataSendCallback the callback.
+     * @return                      this instance.
+     */
     public QuicChannelBootstrap earlyDataSendCallBack(EarlyDataSendCallback earlyDataSendCallback) {
         this.earlyDataSendCallback = ObjectUtil.checkNotNull(earlyDataSendCallback, "earlyDataSendCallback");
         return this;
