@@ -200,6 +200,7 @@ final class QuicheQuicSslContext extends QuicSslContext {
     void remove(QuicheQuicSslEngine engine) {
         QuicheQuicSslEngine removed = engineMap.remove(engine.connection.ssl);
         assert removed == null || removed == engine;
+        engine.removeSessionFromCacheIfInvalid();
     }
 
     QuicClientSessionCache getSessionCache() {

@@ -17,16 +17,37 @@ package io.netty.incubator.codec.quic;
 
 
 import io.netty.util.AsciiString;
+import io.netty.util.internal.SystemPropertyUtil;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 final class QuicClientSessionCache {
+
+    private static final int DEFAULT_CACHE_SIZE;
+    static {
+        // Respect the same system property as the JDK implementation to make it easy to switch between implementations.
+        int cacheSize = SystemPropertyUtil.getInt("javax.net.ssl.sessionCacheSize", 20480);
+        if (cacheSize >= 0) {
+            DEFAULT_CACHE_SIZE = cacheSize;
+        } else {
+            DEFAULT_CACHE_SIZE = 20480;
+        }
+    }
+
+    private final int maxNumSessions = DEFAULT_CACHE_SIZE;
+    private final AtomicInteger numSessions = new AtomicInteger();
     private final Map<HostPort, byte[]> sessions = new ConcurrentHashMap<>();
 
     void saveSession(String host, int port, byte[] session) {
         HostPort hostPort = keyFor(host, port);
         if (hostPort != null) {
-            sessions.put(hostPort, session);
+            if (maxNumSessions >= numSessions.incrementAndGet()) {
+                sessions.put(hostPort, session);
+            } else {
+                numSessions.decrementAndGet();
+            }
         }
     }
 
@@ -36,6 +57,15 @@ final class QuicClientSessionCache {
             return sessions.get(hostPort);
         }
         return null;
+    }
+
+    void removeSession(String host, int port) {
+        HostPort hostPort = keyFor(host, port);
+        if (hostPort != null) {
+            if (sessions.remove(hostPort) != null) {
+                numSessions.decrementAndGet();
+            }
+        }
     }
 
     private static HostPort keyFor(String host, int port) {

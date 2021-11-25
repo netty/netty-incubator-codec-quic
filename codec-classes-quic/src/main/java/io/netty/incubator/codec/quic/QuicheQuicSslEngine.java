@@ -263,6 +263,10 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
         handshakeFinished = true;
     }
 
+    void removeSessionFromCacheIfInvalid() {
+        session.removeFromCacheIfInvalid();
+    }
+
     private final class QuicheQuicSslSession implements SSLSession {
         private X509Certificate[] x509PeerCerts;
         private Certificate[] peerCerts;
@@ -291,6 +295,17 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
                 this.protocol = protocol;
                 this.creationTime = creationTime * 1000L;
                 this.timeout = timeout * 1000L;
+            }
+            removeFromCacheIfInvalid();
+        }
+
+        void removeFromCacheIfInvalid() {
+            if (!isValid()) {
+                // Shouldnt be re-used again
+                QuicClientSessionCache cache = ctx.getSessionCache();
+                if (cache != null) {
+                    cache.removeSession(getPeerHost(), getPeerPort());
+                }
             }
         }
 
