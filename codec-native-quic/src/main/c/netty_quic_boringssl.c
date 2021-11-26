@@ -525,9 +525,16 @@ void quic_SSL_info_callback(const SSL *ssl, int type, int value) {
         jlong timeout = netty_boringssl_SSL_getTimeout(e, ssl);
         jbyteArray alpnSelected = netty_boringssl_SSL_getAlpnSelected(e, ssl);
 
+
+        jboolean singleUse = JNI_FALSE;
+        SSL_SESSION *session = SSL_get_session(ssl);
+        if (session != NULL) {
+            singleUse = SSL_SESSION_should_be_single_use(session) == 1 ? JNI_TRUE : JNI_FALSE;
+        }
+
         // Execute the java callback
         (*e)->CallVoidMethod(e, handshakeCompleteCallback, handshakeCompleteCallbackMethod,
-                 (jlong) ssl, session_id, cipher, version, peerCert, certChain, creationTime, timeout, alpnSelected);
+                 (jlong) ssl, session_id, cipher, version, peerCert, certChain, creationTime, timeout, singleUse, alpnSelected);
     }
 }
 
@@ -656,8 +663,10 @@ int new_session_callback(SSL *ssl, SSL_SESSION *session) {
         peerParamsBytes = to_byte_array(e, (uint8_t *) peer_params, peer_params_len);
     }
 
+    jboolean singleUse = SSL_SESSION_should_be_single_use(session) == 1 ? JNI_TRUE : JNI_FALSE;
+
     // Execute the java callback
-    (*e)->CallVoidMethod(e, sessionCallback, sessionCallbackMethod, (jlong) ssl, sessionBytes, peerParamsBytes);
+    (*e)->CallVoidMethod(e, sessionCallback, sessionCallbackMethod, (jlong) ssl, (jlong) SSL_SESSION_get_time(session), (jlong) SSL_SESSION_get_timeout(session), sessionBytes, singleUse, peerParamsBytes);
 
     return 0;
 }
@@ -1010,7 +1019,7 @@ jint netty_boringssl_JNI_OnLoad(JNIEnv* env, const char* packagePrefix) {
 
     NETTY_JNI_UTIL_PREPEND(packagePrefix, "io/netty/incubator/codec/quic/BoringSSLHandshakeCompleteCallback", name, done);
     NETTY_JNI_UTIL_LOAD_CLASS(env, handshakeCompleteCallbackClass, name, done);
-    NETTY_JNI_UTIL_GET_METHOD(env, handshakeCompleteCallbackClass, handshakeCompleteCallbackMethod, "handshakeComplete", "(J[BLjava/lang/String;Ljava/lang/String;[B[[BJJ[B)V", done);
+    NETTY_JNI_UTIL_GET_METHOD(env, handshakeCompleteCallbackClass, handshakeCompleteCallbackMethod, "handshakeComplete", "(J[BLjava/lang/String;Ljava/lang/String;[B[[BJJZ[B)V", done);
 
     NETTY_JNI_UTIL_PREPEND(packagePrefix, "io/netty/incubator/codec/quic/BoringSSLTlsextServernameCallback", name, done);
     NETTY_JNI_UTIL_LOAD_CLASS(env, servernameCallbackClass, name, done);
@@ -1022,7 +1031,7 @@ jint netty_boringssl_JNI_OnLoad(JNIEnv* env, const char* packagePrefix) {
 
     NETTY_JNI_UTIL_PREPEND(packagePrefix, "io/netty/incubator/codec/quic/BoringSSLSessionCallback", name, done);
     NETTY_JNI_UTIL_LOAD_CLASS(env, sessionCallbackClass, name, done);
-    NETTY_JNI_UTIL_GET_METHOD(env, sessionCallbackClass, sessionCallbackMethod, "newSession", "(J[B[B)V", done);
+    NETTY_JNI_UTIL_GET_METHOD(env, sessionCallbackClass, sessionCallbackMethod, "newSession", "(JJJ[BZ[B)V", done);
 
     verifyCallbackIdx = SSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);
     certificateCallbackIdx = SSL_CTX_get_ex_new_index(0, NULL, NULL, NULL, NULL);

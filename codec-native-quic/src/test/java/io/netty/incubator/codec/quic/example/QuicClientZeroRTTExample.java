@@ -39,7 +39,7 @@ public final class QuicClientZeroRTTExample {
 
     public static void main(String[] args) throws Exception {
         QuicSslContext context = QuicSslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).
-                applicationProtocols("http/0.9").earlyData(true).clientSessionCache(true).build();
+                applicationProtocols("http/0.9").earlyData(true).build();
 
         newChannelAndSendData(context, null);
         newChannelAndSendData(context, new EarlyDataSendCallback() {

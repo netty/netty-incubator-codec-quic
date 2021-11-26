@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 final class BoringSSLSessionCallback {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(BoringSSLSessionCallback.class);
@@ -35,7 +36,7 @@ final class BoringSSLSessionCallback {
     }
 
     @SuppressWarnings("unused")
-    void newSession(long ssl, byte[] session, byte[] peerParams) {
+    void newSession(long ssl, long creationTime, long timeout, byte[] session, boolean isSingleUse, byte[] peerParams) {
         if (sessionCache == null) {
             return;
         }
@@ -57,7 +58,9 @@ final class BoringSSLSessionCallback {
         if (quicSession != null) {
             logger.debug("save session host={}, port={}",
                     engine.getSession().getPeerHost(), engine.getSession().getPeerPort());
-            sessionCache.saveSession(engine.getSession().getPeerHost(), engine.getSession().getPeerPort(), quicSession);
+            sessionCache.saveSession(engine.getSession().getPeerHost(), engine.getSession().getPeerPort(),
+                    TimeUnit.SECONDS.toMillis(creationTime), TimeUnit.SECONDS.toMillis(timeout),
+                    quicSession, isSingleUse);
         }
     }
 
