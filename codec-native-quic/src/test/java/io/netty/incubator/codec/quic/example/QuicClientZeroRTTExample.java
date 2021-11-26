@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Netty Project
+ * Copyright 2021 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -29,9 +29,17 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ChannelInputShutdownReadComplete;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import io.netty.incubator.codec.quic.*;
+import io.netty.incubator.codec.quic.EarlyDataSendCallback;
+import io.netty.incubator.codec.quic.QuicChannel;
+import io.netty.incubator.codec.quic.QuicChannelBootstrap;
+import io.netty.incubator.codec.quic.QuicClientCodecBuilder;
+import io.netty.incubator.codec.quic.QuicSslContext;
+import io.netty.incubator.codec.quic.QuicSslContextBuilder;
+import io.netty.incubator.codec.quic.QuicStreamChannel;
+import io.netty.incubator.codec.quic.QuicStreamType;
 import io.netty.util.CharsetUtil;
 import io.netty.util.NetUtil;
+import io.netty.util.concurrent.Future;
 
 public final class QuicClientZeroRTTExample {
 
@@ -45,11 +53,13 @@ public final class QuicClientZeroRTTExample {
         newChannelAndSendData(context, new EarlyDataSendCallback() {
             @Override
             public void send(QuicChannel quicChannel) {
-                QuicStreamChannel streamChannel = createStream(quicChannel);
-                if (streamChannel != null) {
-                    streamChannel.writeAndFlush(
-                            Unpooled.copiedBuffer("0rtt stream data\r\n", CharsetUtil.US_ASCII));
-                }
+                createStream(quicChannel).addListener(f -> {
+                    if (f.isSuccess()) {
+                        QuicStreamChannel streamChannel = (QuicStreamChannel) f.getNow();
+                        streamChannel.writeAndFlush(
+                                Unpooled.copiedBuffer("0rtt stream data\r\n", CharsetUtil.US_ASCII));
+                    }
+                });
             }
         });
     }
@@ -93,13 +103,11 @@ public final class QuicClientZeroRTTExample {
                     .connect()
                     .get();
 
-            QuicStreamChannel streamChannel = createStream(quicChannel);
+            QuicStreamChannel streamChannel = createStream(quicChannel).sync().getNow();
             // Write the data and send the FIN. After this its not possible anymore to write any more data.
-            if (streamChannel != null) {
-                streamChannel.writeAndFlush(Unpooled.copiedBuffer("Bye\r\n", CharsetUtil.US_ASCII))
-                        .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
-                streamChannel.closeFuture().sync();
-            }
+            streamChannel.writeAndFlush(Unpooled.copiedBuffer("Bye\r\n", CharsetUtil.US_ASCII))
+                    .addListener(QuicStreamChannel.SHUTDOWN_OUTPUT);
+            streamChannel.closeFuture().sync();
             quicChannel.closeFuture().sync();
             channel.close().sync();
         } finally {
@@ -107,29 +115,25 @@ public final class QuicClientZeroRTTExample {
         }
     }
 
-    static QuicStreamChannel createStream(QuicChannel quicChannel) {
-        try {
-            return quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
-                    new ChannelInboundHandlerAdapter() {
-                        @Override
-                        public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                            ByteBuf byteBuf = (ByteBuf) msg;
-                            System.err.println(byteBuf.toString(CharsetUtil.US_ASCII));
-                            byteBuf.release();
-                        }
+    static Future<QuicStreamChannel> createStream(QuicChannel quicChannel) {
+        return quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
+                new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                        ByteBuf byteBuf = (ByteBuf) msg;
+                        System.err.println(byteBuf.toString(CharsetUtil.US_ASCII));
+                        byteBuf.release();
+                    }
 
-                        @Override
-                        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
-                            if (evt == ChannelInputShutdownReadComplete.INSTANCE) {
-                                // Close the connection once the remote peer did send the FIN for this stream.
-                                ((QuicChannel) ctx.channel().parent()).close(true, 0,
-                                        ctx.alloc().directBuffer(16)
-                                                .writeBytes(new byte[]{'k', 't', 'h', 'x', 'b', 'y', 'e'}));
-                            }
+                    @Override
+                    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+                        if (evt == ChannelInputShutdownReadComplete.INSTANCE) {
+                            // Close the connection once the remote peer did send the FIN for this stream.
+                            ((QuicChannel) ctx.channel().parent()).close(true, 0,
+                                    ctx.alloc().directBuffer(16)
+                                            .writeBytes(new byte[]{'k', 't', 'h', 'x', 'b', 'y', 'e'}));
                         }
-                    }).sync().getNow();
-        } catch (Exception e) {
-            return null;
-        }
+                    }
+                });
     }
 }

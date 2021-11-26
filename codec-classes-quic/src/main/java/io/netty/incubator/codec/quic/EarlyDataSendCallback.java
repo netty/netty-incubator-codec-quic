@@ -15,6 +15,16 @@
  */
 package io.netty.incubator.codec.quic;
 
+/**
+ * Implementations of this interface can be used to send early data for a {@link QuicChannel}.
+ */
+@FunctionalInterface
 public interface EarlyDataSendCallback {
+    /**
+     * Allow to send early-data if possible. Please be aware that early data may be replayable and so may have other
+     * security concerns then other data.
+     *
+     * @param quicChannel   the {@link QuicChannel} which will be used to send data on (if any).
+     */
     void send(QuicChannel quicChannel);
 }
