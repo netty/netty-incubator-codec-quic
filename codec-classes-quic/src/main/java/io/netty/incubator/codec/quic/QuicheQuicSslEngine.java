@@ -253,13 +253,13 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
     synchronized void handshakeFinished(byte[] id, String cipher, String protocol, byte[] peerCertificate,
                                         byte[][] peerCertificateChain,
                                         long creationTime, long timeout,
-                                        boolean singleUse, byte[] applicationProtocol) {
+                                        byte[] applicationProtocol) {
         if (applicationProtocol == null) {
             this.applicationProtocol = null;
         } else {
             this.applicationProtocol = new String(applicationProtocol);
         }
-        session.handshakeFinished(id, cipher, protocol, peerCertificate, peerCertificateChain, creationTime, timeout, singleUse);
+        session.handshakeFinished(id, cipher, protocol, peerCertificate, peerCertificateChain, creationTime, timeout);
         handshakeFinished = true;
     }
 
@@ -289,7 +289,7 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
         }
 
         void handshakeFinished(byte[] id, String cipher, String protocol, byte[] peerCertificate,
-                               byte[][] peerCertificateChain, long creationTime, long timeout, boolean singleUse) {
+                               byte[][] peerCertificateChain, long creationTime, long timeout) {
             synchronized (QuicheQuicSslEngine.this) {
                 initPeerCerts(peerCertificateChain, peerCertificate);
                 this.id = id;
@@ -297,10 +297,8 @@ final class QuicheQuicSslEngine extends QuicSslEngine {
                 this.protocol = protocol;
                 this.creationTime = creationTime * 1000L;
                 this.timeout = timeout * 1000L;
-                this.invalid = singleUse;
                 lastAccessedTime = System.currentTimeMillis();
             }
-            removeFromCacheIfInvalid();
         }
 
         void removeFromCacheIfInvalid() {
