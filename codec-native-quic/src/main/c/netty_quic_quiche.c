@@ -303,7 +303,7 @@ static jbyteArray to_byte_array(JNIEnv* env, const uint8_t* bytes, size_t len) {
     if (bytes == NULL || len == 0) {
         return NULL;
     }
-     jbyteArray array = (*env)->NewByteArray(env, len);
+     jbyteArray array = (*env)->NewByteArray(env, (jsize) len);
      if (array == NULL) {
         return NULL;
      }

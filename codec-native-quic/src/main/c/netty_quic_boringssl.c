@@ -126,7 +126,7 @@ static jobjectArray stackToArray(JNIEnv *e, const STACK_OF(CRYPTO_BUFFER)* stack
     if (stack == NULL) {
         return NULL;
     }
-    const int len = sk_CRYPTO_BUFFER_num(stack) - offset;
+    const size_t len = sk_CRYPTO_BUFFER_num(stack) - offset;
     if (len <= 0) {
         return NULL;
     }
@@ -138,13 +138,13 @@ static jobjectArray stackToArray(JNIEnv *e, const STACK_OF(CRYPTO_BUFFER)* stack
 
     for(int i = 0; i < len; i++) {
         CRYPTO_BUFFER* value = sk_CRYPTO_BUFFER_value(stack, i + offset);
-        int length = CRYPTO_BUFFER_len(value);
+        size_t length = CRYPTO_BUFFER_len(value);
 
         if (length <= 0) {
             return NULL;
         }
 
-        jbyteArray bArray = (*e)->NewByteArray(e, length);
+        jbyteArray bArray = (*e)->NewByteArray(e, (jsize) length);
         if (bArray == NULL) {
             return NULL;
         }
@@ -162,7 +162,7 @@ static jbyteArray to_byte_array(JNIEnv* env, uint8_t* bytes, size_t len) {
     if (bytes == NULL || len == 0) {
         return NULL;
     }
-     jbyteArray array = (*env)->NewByteArray(env, len);
+     jbyteArray array = (*env)->NewByteArray(env, (jsize) len);
      if (array == NULL) {
         return NULL;
      }
@@ -244,12 +244,12 @@ complete:
 
 static jbyteArray keyTypes(JNIEnv* e, SSL* ssl) {
     jbyte* ctype_bytes = NULL;
-    int ctype_num = SSL_get0_certificate_types(ssl, (const uint8_t **) &ctype_bytes);
+    size_t ctype_num = SSL_get0_certificate_types(ssl, (const uint8_t **) &ctype_bytes);
     if (ctype_num <= 0) {
         // No idea what we should use... Let the caller handle it.
         return NULL;
     }
-    jbyteArray types = (*e)->NewByteArray(e, ctype_num);
+    jbyteArray types = (*e)->NewByteArray(e, (jsize) ctype_num);
     if (types == NULL) {
         return NULL;
     }
@@ -263,7 +263,7 @@ static int quic_certificate_cb(SSL* ssl, void* arg) {
     CRYPTO_BUFFER** certs = NULL;
     jlong* elements = NULL;
     int ret = 0;
-    int free = 0;
+    long free = 0;
 
     if (quic_get_java_env(&e) != JNI_OK) {
         goto done;
@@ -450,9 +450,9 @@ static jbyteArray netty_boringssl_SSL_getPeerCertificate(JNIEnv* env, const SSL*
         return NULL;
     }
     const CRYPTO_BUFFER *leafCert = sk_CRYPTO_BUFFER_value(certs, 0);
-    int length = CRYPTO_BUFFER_len(leafCert);
+    size_t length = CRYPTO_BUFFER_len(leafCert);
 
-    jbyteArray bArray = (*env)->NewByteArray(env, length);
+    jbyteArray bArray = (*env)->NewByteArray(env, (jsize) length);
     if (bArray == NULL) {
         return NULL;
     }
@@ -826,7 +826,7 @@ static void netty_boringssl_SSLContext_free(JNIEnv* env, jclass clazz, jlong ctx
 }
 
 static jlong netty_boringssl_SSLContext_setSessionCacheTimeout(JNIEnv* env, jclass clazz, jlong ctx, jlong timeout){
-    return SSL_CTX_set_timeout((SSL_CTX*) ctx, timeout);
+    return SSL_CTX_set_timeout((SSL_CTX*) ctx, (uint32_t) timeout);
 }
 
 static jlong netty_boringssl_SSLContext_setSessionCacheSize(JNIEnv* env, jclass clazz, jlong ctx, jlong size) {
@@ -835,7 +835,7 @@ static jlong netty_boringssl_SSLContext_setSessionCacheSize(JNIEnv* env, jclass 
         int mode = SSL_CTX_get_session_cache_mode(ssl_ctx);
         // Internal Cache only works on the server side for now.
         SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_SERVER | mode);
-        return SSL_CTX_sess_set_cache_size(ssl_ctx, size);
+        return SSL_CTX_sess_set_cache_size(ssl_ctx, (unsigned long) size);
     }
 
     return 0;
