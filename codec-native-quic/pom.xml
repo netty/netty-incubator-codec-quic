@@ -950,6 +950,7 @@
               <configureArgs>
                 <configureArg>${extraConfigureArg}</configureArg>
                 <configureArg>${extraConfigureArg2}</configureArg>
+                <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
               </configureArgs>
             </configuration>
             <goals>
