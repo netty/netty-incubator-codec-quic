@@ -195,25 +195,51 @@ jobs:
         with:
           crate: cargo-ndk
 
-      - name: Install Rust toolchain for Android architectures
-        run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+      - name: Install Rust stable aarch64-linux-android toolchain for the target
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: aarch64-linux-android
+          override: true
+
+      - name: Install Rust stable armv7-linux-androideabi toolchain for the target
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: armv7-linux-androideabi
+          override: true
+
+      - name: Install Rust stable i686-linux-android toolchain for the target
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: i686-linux-android
+          override: true
+
+      - name: Install Rust stable x86_64-linux-android toolchain for the target
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-linux-android
+          override: true
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+      - name: Download NDK
+        run: curl --http1.1 -O https://dl.google.com/android/repository/android-ndk-r21-linux-x86_64.zip
 
-      - name: Install Android SDK platforms
-        run: sdkmanager "${{ env.SDK_VER }}"
-
-      - name: Install Android NDK
-        run: sdkmanager "${{ env.NDK_VER }}"
+      - name: Extract NDK
+        run: unzip -q android-ndk-r21-linux-x86_64.zip
 
       - name: Setup environment
-        run: export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+        run: export ANDROID_NDK_HOME=android-ndk-r21-linux-x86_64
 
       - name: Build project
         run: ./mvnw -B -ntp --file pom.xml clean package -Dandroid
