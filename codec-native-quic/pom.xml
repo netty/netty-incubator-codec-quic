@@ -242,7 +242,7 @@
         <packaging.type>aar</packaging.type>
         <skipTests>true</skipTests>
         <platform>android</platform>
-        <androidNdkVersion>23</androidNdkVersion>
+        <androidNdkVersion>21</androidNdkVersion>
         <androidMinSdkVersion>21</androidMinSdkVersion>
         <cargoTarget>--target=${quicheTarget}</cargoTarget>
         <skipIteration>false</skipIteration>
