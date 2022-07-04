@@ -239,7 +239,7 @@ jobs:
         run: unzip -q android-ndk-r21-linux-x86_64.zip
 
       - name: Setup environment
-        run: export ANDROID_NDK_HOME=android-ndk-r21-linux-x86_64
+        run: export ANDROID_NDK_HOME=android-ndk-r21
 
       - name: Build project
         run: ./mvnw -B -ntp --file pom.xml clean package -Dandroid
