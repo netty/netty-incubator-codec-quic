@@ -812,7 +812,7 @@
                     <filter token="BORINGSSL_INCLUDE_DIR" value="${boringsslHomeIncludeDir}" />
                     <filter token="QUICHE_INCLUDE_DIR" value="${quicheHomeIncludeDir}" />
                     <filter token="BORINGSSL_LIB_DIR" value="${boringsslHomeBuildDir}" />
-                    <filter token="QUICHE_LIB_DIR" value="${quicheBuildDir}" />
+                    <filter token="QUICHE_LIB_DIR" value="${quicheHomeBuildDir}" />
                     <filter token="QUICHE_LIB" value="quiche" />
                     <filter token="CRYPTO_LIB" value="crypto" />
                     <filter token="SSL_LIB" value="ssl" />
@@ -957,7 +957,6 @@
               <goal>generate</goal>
               <goal>build</goal>
             </goals>
-            <phase>compile</phase>
           </execution>
         </executions>
       </plugin>
