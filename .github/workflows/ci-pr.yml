@@ -219,7 +219,7 @@ jobs:
         run: sdkmanager "${{ env.NDK_VER }}"
 
       - name: Setup environment
-        run: export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+        run: export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk-bundle
 
       - name: Build project
         run: ./mvnw -B -ntp --file pom.xml clean package -Dandroid
