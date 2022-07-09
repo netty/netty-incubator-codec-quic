@@ -310,6 +310,7 @@
                       </properties>
                     </itemWithProperty>
                   </itemsWithProperties>
+                  <baseDirectory>${project.basedir}</baseDirectory>
                   <goals>
                     <goal>package</goal>
                   </goals>
