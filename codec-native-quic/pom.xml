@@ -163,11 +163,11 @@
         <jniLibName>netty_quiche_osx_x86_64</jniLibName>
         <jni.classifier>osx-x86_64</jni.classifier>
         <javaModuleNameWithClassifier>osx.x86_64</javaModuleNameWithClassifier>
-        <macosxDeploymentTarget>11.0</macosxDeploymentTarget>
-        <extraCflags>-target x86_64-apple-macos11</extraCflags>
-        <extraCxxflags>-target x86_64-apple-macos11</extraCxxflags>
+        <macosxDeploymentTarget>10.12</macosxDeploymentTarget>
+        <extraCflags>-target x86_64-apple-macos10.12</extraCflags>
+        <extraCxxflags>-target x86_64-apple-macos10.12</extraCxxflags>
         <!-- On *nix, add ASM flags to disable executable stack -->
-        <cmakeAsmFlags>-Wa,--noexecstack -target x86_64-apple-macos11</cmakeAsmFlags>
+        <cmakeAsmFlags>-Wa,--noexecstack -target x86_64-apple-macos10.12</cmakeAsmFlags>
         <extraCmakeFlags>-DCMAKE_SYSTEM_PROCESSOR=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64</extraCmakeFlags>
         <cmakeCFlags>${extraCflags} -O3 -fno-omit-frame-pointer  -DOPENSSL_C11_ATOMIC</cmakeCFlags>
         <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
