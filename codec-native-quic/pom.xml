@@ -178,7 +178,7 @@
         <extraLdflags>-arch x86_64 -platform_version,macos,${macosxDeploymentTarget},${macosxDeploymentTarget}</extraLdflags>
         <extraConfigureArg>--host=x86_64-apple-darwin</extraConfigureArg>
         <extraConfigureArg2>MACOSX_DEPLOYMENT_TARGET=${macosxDeploymentTarget}</extraConfigureArg2>
-        <bundleNativeCode>META-INF/native/lib${jniLibName}.jnilib;osname=macos;osname=macosx;processor=x86_64</bundleNativeCode>^
+        <bundleNativeCode>META-INF/native/lib${jniLibName}.jnilib;osname=macos;osname=macosx;processor=x86_64</bundleNativeCode>
         <!-- Don't run tests as we can't load the x86_64 lib on a aarch64 system -->
         <skipTests>true</skipTests>
         <crossCompile>mac</crossCompile>
