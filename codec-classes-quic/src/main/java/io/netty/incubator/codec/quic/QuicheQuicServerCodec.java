@@ -202,7 +202,6 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
             dcid.getBytes(dcid.readerIndex(), bytes);
             key = ByteBuffer.wrap(bytes);
         }
-
         QuicheQuicChannel channel = QuicheQuicChannel.forServer(
                 ctx.channel(), key, sender, config.isDatagramSupported(),
                 streamHandler, streamOptionsArray, streamAttrsArray, this::removeChannel);

@@ -63,6 +63,7 @@ import java.util.function.Consumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -335,7 +336,6 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
         testConnectWithDroppedPackets(0, QuicConnectionIdGenerator.signGenerator());
     }
 
-    // This test fails but it should not!
     @Test
     @Timeout(5)
     public void testConnectWithDroppedPacketsAndSignConnectionIdGenerator() throws Throwable {
