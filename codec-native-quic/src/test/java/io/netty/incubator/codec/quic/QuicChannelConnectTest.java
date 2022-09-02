@@ -269,7 +269,7 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
                         // Server closes the stream whenever the client sends a FIN.
                         if (evt instanceof ChannelInputShutdownEvent) {
-                            ctx.channel().close();
+                            ctx.close();
                         }
                         ctx.fireUserEventTriggered(evt);
                     }
@@ -278,7 +278,7 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
         // Have the server drop the few first numDroppedPackets incoming packets.
         server.pipeline().addFirst(
                 new ChannelInboundHandlerAdapter() {
-                    int counter = 0;
+                    private int counter = 0;
 
                     public void channelRead(ChannelHandlerContext ctx, Object msg) {
                         if (counter++ < numDroppedPackets) {
@@ -304,8 +304,8 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     new ChannelInboundHandlerAdapter()).get();
 
             ByteBuf payload = Unpooled.wrappedBuffer("HELLO!".getBytes(StandardCharsets.US_ASCII));
-            quicStream.writeAndFlush(payload);
-            quicStream.shutdownOutput();
+            quicStream.writeAndFlush(payload).sync();
+            quicStream.shutdownOutput().sync();
             assertTrue(quicStream.closeFuture().await().isSuccess());
 
             ChannelFuture closeFuture = channel.close().await();
