@@ -107,7 +107,8 @@ final class QuicheSendInfo {
             setAddress(memory, Quiche.QUICHE_SEND_INFO_OFFSETOF_FROM, Quiche.QUICHE_SEND_INFO_OFFSETOF_FROM_LEN, from);
             setAddress(memory, Quiche.QUICHE_SEND_INFO_OFFSETOF_TO, Quiche.QUICHE_SEND_INFO_OFFSETOF_TO_LEN, to);
             // Zero out the timespec.
-            memory.position(position + Quiche.QUICHE_SEND_INFO_OFFSETOF_AT).put(TIMESPEC_ZEROOUT);
+            memory.position(position + Quiche.QUICHE_SEND_INFO_OFFSETOF_AT);
+            memory.put(TIMESPEC_ZEROOUT);
         } finally {
             memory.position(position);
         }
