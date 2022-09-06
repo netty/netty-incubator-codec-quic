@@ -65,22 +65,7 @@ final class QuicheRecvInfo {
             } else {
                 memory.putLong(position + addrOffset, sockaddrMemoryAddress);
             }
-            switch (Quiche.SIZEOF_SOCKLEN_T) {
-                case 1:
-                    memory.put(position + lenOffset, (byte) len);
-                    break;
-                case 2:
-                    memory.putShort(position + lenOffset, (short) len);
-                    break;
-                case 4:
-                    memory.putInt(position + lenOffset, len);
-                    break;
-                case 8:
-                    memory.putLong(position + lenOffset, len);
-                    break;
-                default:
-                    throw new IllegalStateException();
-            }
+            Quiche.setPrimitiveValue(memory, position + lenOffset, Quiche.SIZEOF_SOCKLEN_T, len);
         } finally {
             memory.position(position);
         }
