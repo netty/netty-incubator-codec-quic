@@ -35,16 +35,16 @@
 #define ERR_LEN 256
 
 static jclass sslTaskClass = NULL;
-static jfieldID  sslTaskReturnValue;
-static jfieldID  sslTaskComplete;
+static jfieldID sslTaskReturnValue;
+static jfieldID sslTaskComplete;
 
 static jclass verifyTaskClass = NULL;
 static jmethodID verifyTaskClassInitMethod = NULL;
 
 static jclass certificateTaskClass = NULL;
 static jmethodID certificateTaskClassInitMethod = NULL;
-static jfieldID  certificateTaskClassChainField;
-static jfieldID  certificateTaskClassKeyField;
+static jfieldID certificateTaskClassChainField;
+static jfieldID certificateTaskClassKeyField;
 
 static jclass handshakeCompleteCallbackClass = NULL;
 static jmethodID handshakeCompleteCallbackMethod = NULL;
@@ -204,8 +204,6 @@ static netty_boringssl_ssl_task_t* netty_boringssl_ssl_task_new(JNIEnv* e, jobje
     return sslTask;
 }
 
-// TODO:
-// Call once the SSL object is freed!
 static void netty_boringssl_ssl_task_free(JNIEnv* e, netty_boringssl_ssl_task_t* sslTask) {
     if (sslTask == NULL) {
         return;
