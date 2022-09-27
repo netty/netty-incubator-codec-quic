@@ -35,7 +35,6 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -935,15 +934,14 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
 
     @ParameterizedTest
     @MethodSource("sslTaskExecutors")
-    @Disabled("Need more work")
     public void testConnectKeylessSignFailure(Executor executor) throws Throwable {
         testConnectKeyless0(executor, true);
     }
 
     public void testConnectKeyless0(Executor executor, boolean fail) throws Throwable {
+        AtomicReference<Throwable> causeRef = new AtomicReference<>();
         AtomicBoolean signCalled = new AtomicBoolean();
         BoringSSLAsyncPrivateKeyMethod keyMethod = new BoringSSLAsyncPrivateKeyMethod() {
-
             @Override
             public Future<byte[]> sign(SSLEngine engine, int signatureAlgorithm, byte[] input) {
                 signCalled.set(true);
@@ -981,13 +979,17 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
             }
         };
 
-
         BoringSSLKeylessManagerFactory factory = BoringSSLKeylessManagerFactory.newKeyless(
                 keyMethod, QuicTestUtils.SELF_SIGNED_CERTIFICATE.certificate());
         Channel server = QuicTestUtils.newServer(QuicTestUtils.newQuicServerBuilder(executor,
                         QuicSslContextBuilder.forServer(factory, null)
                                 .applicationProtocols(QuicTestUtils.PROTOS).clientAuth(ClientAuth.NONE).build()),
-                InsecureQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter(),
+                InsecureQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                        causeRef.set(cause);
+                    }
+                } ,
                 new ChannelInboundHandlerAdapter());
         InetSocketAddress address = (InetSocketAddress) server.localAddress();
 
@@ -1003,13 +1005,15 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     .remoteAddress(address)
                     .connect().await();
             if (fail) {
-                assertThat(connectFuture.cause(), Matchers.instanceOf(SSLException.class));
+                assertThat(connectFuture.cause(), Matchers.instanceOf(ClosedChannelException.class));
+                assertThat(causeRef.get(), Matchers.instanceOf(SSLHandshakeException.class));
             } else {
                 QuicChannel quicChannel = connectFuture.get();
                 assertTrue(quicChannel.close().await().isSuccess());
                 ChannelFuture closeFuture = quicChannel.closeFuture().await();
                 assertTrue(closeFuture.isSuccess());
                 clientQuicChannelHandler.assertState();
+                assertNull(causeRef.get());
             }
             assertTrue(signCalled.get());
         } finally {
