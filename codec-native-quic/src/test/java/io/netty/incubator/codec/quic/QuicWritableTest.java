@@ -96,7 +96,7 @@ public class QuicWritableTest extends AbstractQuicTest {
                     .connect()
                     .get();
 
-            System.err.println("Connection established");
+            //System.err.println("Connection established");
             QuicStreamChannel stream = quicChannel.createStream(
                     QuicStreamType.BIDIRECTIONAL, new ChannelInboundHandlerAdapter() {
                         int bytes;
@@ -148,7 +148,7 @@ public class QuicWritableTest extends AbstractQuicTest {
                         }
                     }).get();
 
-            System.err.println("Stream established");
+            //System.err.println("Stream established");
 
             assertFalse(writePromise.isDone());
 
