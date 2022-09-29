@@ -421,23 +421,24 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         unsafe().close(voidPromise());
         // making sure that connection statistics is avaliable
         // even after channel is closed
-        statsAtClose = collectStats0(conn,  eventLoop().newPromise());
+        statsAtClose = collectStats0(conn, eventLoop().newPromise());
         try {
-            ChannelPromise promise = QuicheQuicChannel.this.connectPromise;
-            if (promise != null) {
-                QuicheQuicChannel.this.connectPromise = null;
-                promise.tryFailure(new ClosedChannelException());
-            }
             state = CLOSED;
             timedOut = Quiche.quiche_conn_is_timed_out(conn.address());
 
+            ChannelPromise promise = QuicheQuicChannel.this.connectPromise;
+            if (promise != null) {
+                QuicheQuicChannel.this.connectPromise = null;
+                Exception exception = timedOut ? new ConnectTimeoutException(
+                        "connection timed out: " + remote) : new ClosedChannelException();
+                promise.tryFailure(exception);
+            }
             closeStreams();
 
             if (finBuffer != null) {
                 finBuffer.release();
                 finBuffer = null;
             }
-            state = CLOSED;
 
             timeoutHandler.cancel();
         } finally {
