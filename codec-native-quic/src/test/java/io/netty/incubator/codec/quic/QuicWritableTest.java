@@ -95,6 +95,8 @@ public class QuicWritableTest extends AbstractQuicTest {
                     .remoteAddress(address)
                     .connect()
                     .get();
+
+            System.err.println("Connection established");
             QuicStreamChannel stream = quicChannel.createStream(
                     QuicStreamType.BIDIRECTIONAL, new ChannelInboundHandlerAdapter() {
                         int bytes;
@@ -145,6 +147,9 @@ public class QuicWritableTest extends AbstractQuicTest {
                             clientErrorRef.set(cause);
                         }
                     }).get();
+
+            System.err.println("Stream established");
+
             assertFalse(writePromise.isDone());
 
             // Let's trigger the reads. This will ensure we will consume the data and the remote peer
