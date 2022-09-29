@@ -505,6 +505,7 @@ final class QuicheQuicStreamChannel extends DefaultAttributeMap implements QuicS
                 // Just ignore
             } finally {
                 if (!queue.isEmpty()) {
+                    System.err.println("left: " + queue.bytes());
                     // Only fail if the queue is non-empty.
                     queue.removeAndFailAll(new ClosedChannelException());
                 }
