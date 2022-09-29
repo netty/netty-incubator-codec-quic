@@ -74,6 +74,7 @@ public class QuicWritableTest extends AbstractQuicTest {
 
                     @Override
                     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                        cause.printStackTrace();
                         serverErrorRef.set(cause);
                     }
 
@@ -105,7 +106,11 @@ public class QuicWritableTest extends AbstractQuicTest {
 
                         @Override
                         public void channelActive(ChannelHandlerContext ctx) {
-                            ctx.writeAndFlush(ctx.alloc().buffer(8).writeLong(8));
+                            ctx.writeAndFlush(ctx.alloc().buffer(8).writeLong(8)).addListener(f -> {
+                                if (!f.isSuccess()) {
+                                    clientErrorRef.set(f.cause());
+                                }
+                            });
                         }
 
                         @Override
@@ -136,6 +141,7 @@ public class QuicWritableTest extends AbstractQuicTest {
 
                         @Override
                         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                            cause.printStackTrace();
                             clientErrorRef.set(cause);
                         }
                     }).get();
