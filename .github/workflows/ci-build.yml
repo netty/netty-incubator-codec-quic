@@ -61,11 +61,11 @@ jobs:
         run: ./.github/scripts/check_build_result.sh build.output
 
       - uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
+#         if: ${{ failure() }}
         with:
-          name: target
+          name: build-linux-x86_64-target
           path: |
-            **/target/surefire-reports/
+            **/target/
             **/hs_err*.log
 
   build-linux-aarch64:
@@ -152,11 +152,11 @@ jobs:
         run: ./mvnw.cmd -B -ntp --file pom.xml clean package
 
       - uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
+#         if: ${{ failure() }}
         with:
           name: build-windows-target
           path: |
-            **/target/surefire-reports/
+            **/target/
             **/hs_err*.log
 
   build-android:
