@@ -65,7 +65,7 @@ jobs:
         with:
           name: build-linux-x86_64-target
           path: |
-            **/target/
+            **/target/*.jar
             **/hs_err*.log
 
   build-linux-aarch64:
@@ -156,7 +156,7 @@ jobs:
         with:
           name: build-windows-target
           path: |
-            **/target/
+            **/target/*.jar
             **/hs_err*.log
 
   build-android:
