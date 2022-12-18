@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -46,7 +47,8 @@ public class QuicReadableTest extends AbstractQuicTest {
 
         QuicChannelValidationHandler serverHandler = new QuicChannelValidationHandler();
         Channel server = QuicTestUtils.newServer(
-                QuicTestUtils.newQuicServerBuilder(executor).initialMaxStreamsBidirectional(5000),
+                QuicTestUtils.newQuicServerBuilder(executor).initialMaxStreamsBidirectional(5000)
+                        .maxIdleTimeout(10, TimeUnit.SECONDS),
                 InsecureQuicTokenHandler.INSTANCE,
                 serverHandler, new ChannelInboundHandlerAdapter() {
                     private int counter;
