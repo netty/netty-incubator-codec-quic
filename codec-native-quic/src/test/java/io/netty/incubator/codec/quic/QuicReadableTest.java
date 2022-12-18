@@ -85,7 +85,8 @@ public class QuicReadableTest extends AbstractQuicTest {
                         return true;
                     }
                 });
-        Channel channel = QuicTestUtils.newClient(executor);
+        Channel channel = QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor)
+                .maxIdleTimeout(10, TimeUnit.SECONDS));
         QuicChannelValidationHandler clientHandler = new QuicChannelValidationHandler();
         ByteBuf data = Unpooled.directBuffer().writeLong(8);
         try {
