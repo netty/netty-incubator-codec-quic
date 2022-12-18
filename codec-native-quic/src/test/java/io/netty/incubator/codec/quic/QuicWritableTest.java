@@ -111,7 +111,7 @@ public class QuicWritableTest extends AbstractQuicTest {
                         }
 
                         @Override
-                        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                        public void channelRead(ChannelHandlerContext ctx, Object msg) throws InterruptedException {
                             if (bytes == 0) {
                                 // First read
                                 assertFalse(writePromise.isDone());
@@ -125,13 +125,15 @@ public class QuicWritableTest extends AbstractQuicTest {
                             }
 
                             if (!readInComplete) {
+                                Thread.sleep(10);
                                 ctx.read();
                             }
                         }
 
                         @Override
-                        public void channelReadComplete(ChannelHandlerContext ctx) {
+                        public void channelReadComplete(ChannelHandlerContext ctx) throws InterruptedException {
                             if (readInComplete) {
+                                Thread.sleep(10);
                                 ctx.read();
                             }
                         }
