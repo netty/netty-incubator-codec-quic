@@ -20,8 +20,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Timeout;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 @Timeout(10)
 public abstract class AbstractQuicTest {
@@ -39,8 +39,8 @@ public abstract class AbstractQuicTest {
     }
 
     static void shutdown(Executor executor) {
-        if (executor instanceof ScheduledExecutorService) {
-            ((ScheduledExecutorService) executor).shutdown();
+        if (executor instanceof ExecutorService) {
+            ((ExecutorService) executor).shutdown();
         }
     }
 }
