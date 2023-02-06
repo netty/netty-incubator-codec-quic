@@ -42,10 +42,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     # Caching of maven dependencies
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       with:
         path: ~/.m2/repository
         key: analyze-${{ matrix.language }}-maven-cache-${{ hashFiles('**/pom.xml') }}
@@ -54,7 +54,7 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
@@ -84,4 +84,4 @@ jobs:
       run: ./mvnw clean package -DskipTests=true
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
