@@ -207,7 +207,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: zulu
-          java-version: 1.8
+          java-version: 8
 
       - name: Install Android SDK platforms
         run: ${ANDROID_HOME}/tools/bin/sdkmanager "platforms;${{ env.SDK_VER }}"
