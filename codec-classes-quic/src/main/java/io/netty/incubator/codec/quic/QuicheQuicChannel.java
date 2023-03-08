@@ -1126,23 +1126,21 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                             break;
                         case 1:
                             // Only one buffer in the out list, there is no need to use segments.
-                            ChannelFuture future = parent().write(new DatagramPacket(bufferList.get(0), sendToAddress));
+                            boolean stop = writePacket(new DatagramPacket(bufferList.get(0), sendToAddress), len);
                             packetWasWritten = true;
-                            if (isSendWindowUsed(len)) {
+                            if (stop) {
                                 // Nothing left in the window, continue later
-                                future.addListener(continueSendingListener);
                                 return true;
                             }
                             break;
                         default:
                             // Create a packet with segments in.
-                            ChannelFuture writeFuture = parent().write(segmentedDatagramPacketAllocator.newPacket(
+                            boolean stopWriting = writePacket(segmentedDatagramPacketAllocator.newPacket(
                                     Unpooled.wrappedBuffer(bufferList.toArray(
-                                            new ByteBuf[0])), segmentSize, sendToAddress));
+                                            new ByteBuf[0])), segmentSize, sendToAddress), len);
                             packetWasWritten = true;
-                            if (isSendWindowUsed(len)) {
+                            if (stopWriting) {
                                 // Nothing left in the window, continue later
-                                writeFuture.addListener(continueSendingListener);
                                 return true;
                             }
                             break;
@@ -1204,11 +1202,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                         new QuicConnectionEvent(oldRemote, remote));
             }
             out.writerIndex(writerIndex + written);
-            ChannelFuture future = parent().write(new DatagramPacket(out, remote));
+            boolean stop = writePacket(new DatagramPacket(out, remote), len);
             packetWasWritten = true;
-            if (isSendWindowUsed(len)) {
+            if (stop) {
                 // Nothing left in the window, continue later
-                future.addListener(continueSendingListener);
                 break;
             }
         }
@@ -1217,6 +1214,16 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             unsafe().close(newPromise());
         }
         return packetWasWritten;
+    }
+
+    private boolean writePacket(DatagramPacket packet, int len) {
+        ChannelFuture future = parent().write(packet);
+        if (isSendWindowUsed(len)) {
+            // Nothing left in the window, continue later
+            future.addListener(continueSendingListener);
+            return true;
+        }
+        return false;
     }
 
     private static boolean isSendWindowUsed(int len) {
