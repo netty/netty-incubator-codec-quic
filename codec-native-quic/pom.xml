@@ -273,8 +273,8 @@
         <packaging.type>aar</packaging.type>
         <skipTests>true</skipTests>
         <platform>android</platform>
-        <androidNdkVersion>21</androidNdkVersion>
-        <androidMinSdkVersion>21</androidMinSdkVersion>
+        <androidNdkVersion>23</androidNdkVersion>
+        <androidMinSdkVersion>23</androidMinSdkVersion>
         <cargoTarget>--target=${quicheTarget}</cargoTarget>
         <skipIteration>false</skipIteration>
         <nativeLibOnlyDir>${project.build.directory}/native-lib-only/${androidAbi}</nativeLibOnlyDir>
