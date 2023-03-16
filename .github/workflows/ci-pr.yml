@@ -180,8 +180,8 @@ jobs:
     runs-on: ubuntu-latest
     name: android
     env:
-      SDK_VER: "android-21"
-      NDK_VER: "21.4.7075529"
+      SDK_VER: "android-23"
+      NDK_VER: "23.2.8568313"
     steps:
       - name: Set environmental variables
         run: echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/$NDK_VER" >> $GITHUB_ENV
