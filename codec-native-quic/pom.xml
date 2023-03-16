@@ -369,7 +369,7 @@
                     <configureArg>TOOLCHAIN=${ndkToolchain}</configureArg>
                     <configureArg>TARGET=${androidTriple}</configureArg>
                     <configureArg>API=${androidMinSdkVersion}</configureArg>
-                    <configureArg>AR=${ndkToolchain}/bin/${androidTriple2}-ar</configureArg>
+                    <configureArg>AR=${ndkToolchain}/bin/llvm-ar</configureArg>
                     <configureArg>CC=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang</configureArg>
                     <configureArg>AS=${ndkToolchain}/bin/${androidTriple2}-as</configureArg>
                     <configureArg>CXX=${ndkToolchain}/bin/${androidTriple}${androidMinSdkVersion}-clang++</configureArg>
