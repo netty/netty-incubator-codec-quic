@@ -274,7 +274,7 @@
         <skipTests>true</skipTests>
         <platform>android</platform>
         <androidNdkVersion>23</androidNdkVersion>
-        <androidMinSdkVersion>23</androidMinSdkVersion>
+        <androidMinSdkVersion>21</androidMinSdkVersion>
         <cargoTarget>--target=${quicheTarget}</cargoTarget>
         <skipIteration>false</skipIteration>
         <nativeLibOnlyDir>${project.build.directory}/native-lib-only/${androidAbi}</nativeLibOnlyDir>

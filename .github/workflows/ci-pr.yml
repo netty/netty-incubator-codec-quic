@@ -180,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     name: android
     env:
-      SDK_VER: "android-23"
+      SDK_VER: "android-21"
       NDK_VER: "23.2.8568313"
     steps:
       - name: Set environmental variables
