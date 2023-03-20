@@ -28,7 +28,8 @@ RUN yum install -y \
  perl \
  tar \
  unzip \
- wget
+ wget \
+ zip
 
 
 RUN mkdir $SOURCE_DIR
