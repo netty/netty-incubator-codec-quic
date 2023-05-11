@@ -21,13 +21,14 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.MessageSizeEstimator;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
@@ -40,7 +41,7 @@ import static io.netty.incubator.codec.quic.Quiche.allocateNativeOrder;
 abstract class QuicheQuicCodec extends ChannelDuplexHandler {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(QuicheQuicCodec.class);
 
-    private final Map<ByteBuffer, QuicheQuicChannel> connections = new HashMap<>();
+    private final Map<ByteBuffer, QuicheQuicChannel> connections = new ConcurrentHashMap<>();
     private final Queue<QuicheQuicChannel> needsFireChannelReadComplete = new ArrayDeque<>();
     private final int maxTokenLength;
     private final FlushStrategy flushStrategy;
@@ -86,9 +87,32 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
                     type, version, scid,
                     dcid, token);
             if (channel != null) {
-                channel.recv(recipient, sender, buffer);
-                if (channel.markInFireChannelReadCompleteQueue()) {
-                    needsFireChannelReadComplete.add(channel);
+                EventExecutor executor = channel.eventLoop();
+                if (executor.inEventLoop()) {
+                    try {
+                        channel.recv(recipient, sender, buffer);
+                        channel.recvComplete();
+                    }finally {
+                        buffer.release();
+                        if (channel.freeIfClosed()) {
+                            connections.remove(channel.key());
+                        }
+                    }
+                } else {
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                channel.recv(recipient, sender, buffer);
+                                channel.recvComplete();
+                            } finally {
+                                buffer.release();
+                                if (channel.freeIfClosed()) {
+                                    connections.remove(channel.key());
+                                }
+                            }
+                        }
+                    });
                 }
             }
         };
@@ -101,7 +125,17 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
             // Use a copy of the array as closing the channel may cause an unwritable event that could also
             // remove channels.
             for (QuicheQuicChannel ch : connections.values().toArray(new QuicheQuicChannel[0])) {
-                ch.forceClose();
+                EventExecutor executor = ch.eventLoop();
+                if(executor.inEventLoop()){
+                    ch.forceClose();
+                }else {
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            ch.forceClose();
+                        }
+                    });
+                }
             }
             connections.clear();
 
@@ -124,23 +158,15 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         DatagramPacket packet = (DatagramPacket) msg;
-        try {
-            ByteBuf buffer = ((DatagramPacket) msg).content();
-            if (!buffer.isDirect()) {
-                // We need a direct buffer as otherwise we can not access the memoryAddress.
-                // Let's do a copy to direct memory.
-                ByteBuf direct = ctx.alloc().directBuffer(buffer.readableBytes());
-                try {
-                    direct.writeBytes(buffer, buffer.readerIndex(), buffer.readableBytes());
-                    handleQuicPacket(packet.sender(), packet.recipient(), direct);
-                } finally {
-                    direct.release();
-                }
-            } else {
-                handleQuicPacket(packet.sender(), packet.recipient(), buffer);
-            }
-        } finally {
-            packet.release();
+        ByteBuf buffer = ((DatagramPacket) msg).content();
+        if (!buffer.isDirect()) {
+            // We need a direct buffer as otherwise we can not access the memoryAddress.
+            // Let's do a copy to direct memory.
+            ByteBuf direct = ctx.alloc().directBuffer(buffer.readableBytes());
+            direct.writeBytes(buffer, buffer.readerIndex(), buffer.readableBytes());
+            handleQuicPacket(packet.sender(), packet.recipient(), direct);
+        } else {
+            handleQuicPacket(packet.sender(), packet.recipient(), buffer);
         }
     }
 
@@ -173,16 +199,7 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     @Override
     public final void channelReadComplete(ChannelHandlerContext ctx) {
-        for (;;) {
-            QuicheQuicChannel channel = needsFireChannelReadComplete.poll();
-            if (channel == null) {
-                break;
-            }
-            channel.recvComplete();
-            if (channel.freeIfClosed()) {
-                connections.remove(channel.key());
-            }
-        }
+
     }
 
     @Override
@@ -192,7 +209,17 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
             while (entries.hasNext()) {
                 QuicheQuicChannel channel = entries.next().getValue();
                 // TODO: Be a bit smarter about this.
-                channel.writable();
+                EventExecutor executor = channel.eventLoop();
+                if(executor.inEventLoop()){
+                    channel.writable();
+                }else {
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            channel.writable();
+                        }
+                    });
+                }
                 removeIfClosed(entries, channel);
             }
         } else {
@@ -206,6 +233,20 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     @Override
     public final void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)  {
+        EventExecutor executor = ctx.executor();
+        if(executor.inEventLoop()){
+            write0(ctx, msg, promise);
+        }else {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    write0(ctx, msg, promise);
+                }
+            });
+        }
+    }
+
+    public final void write0(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)  {
         int size = estimatorHandle.size(msg);
         if (size > 0) {
             pendingBytes += size;
@@ -224,8 +265,20 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     @Override
     public final void flush(ChannelHandlerContext ctx) {
-        if (pendingBytes > 0) {
-            flushNow(ctx);
+        EventExecutor executor = ctx.executor();
+        if(executor.inEventLoop()){
+            if (pendingBytes > 0) {
+                flushNow(ctx);
+            }
+        }else {
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    if (pendingBytes > 0) {
+                        flushNow(ctx);
+                    }
+                }
+            });
         }
     }
 

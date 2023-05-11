@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
@@ -41,6 +42,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
 
     private final Function<QuicChannel, ? extends QuicSslEngine> sslEngineProvider;
     private final Executor sslTaskExecutor;
+    private EventLoopGroup workerGroup;
     private final QuicConnectionIdGenerator connectionIdAddressGenerator;
     private final QuicTokenHandler tokenHandler;
     private final ChannelHandler handler;
@@ -59,6 +61,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
                           FlushStrategy flushStrategy,
                           Function<QuicChannel, ? extends QuicSslEngine> sslEngineProvider,
                           Executor sslTaskExecutor,
+                          EventLoopGroup workerGroup,
                           ChannelHandler handler,
                           Map.Entry<ChannelOption<?>, Object>[] optionsArray,
                           Map.Entry<AttributeKey<?>, Object>[] attrsArray,
@@ -70,6 +73,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
         this.connectionIdAddressGenerator = connectionIdAddressGenerator;
         this.sslEngineProvider = sslEngineProvider;
         this.sslTaskExecutor = sslTaskExecutor;
+        this.workerGroup = workerGroup;
         this.handler = handler;
         this.optionsArray = optionsArray;
         this.attrsArray = attrsArray;
@@ -244,7 +248,11 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
         channel.attachQuicheConnection(connection);
 
         putChannel(channel);
-        ctx.channel().eventLoop().register(channel);
+        if(workerGroup != null){
+            workerGroup.register(channel);
+        }else {
+            ctx.channel().eventLoop().register(channel);
+        }
         channel.pipeline().fireUserEventTriggered(new QuicConnectionEvent(null, sender));
         return channel;
     }

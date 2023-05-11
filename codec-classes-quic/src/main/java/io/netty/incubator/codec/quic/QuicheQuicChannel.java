@@ -32,6 +32,7 @@ import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.DefaultChannelPipeline;
 import io.netty.channel.EventLoop;
 import io.netty.channel.RecvByteBufAllocator;
+import io.netty.channel.nio.NioEventLoop;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -544,7 +545,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     @Override
     protected boolean isCompatible(EventLoop eventLoop) {
-        return parent().eventLoop() == eventLoop;
+        return eventLoop instanceof NioEventLoop;
     }
 
     @Override

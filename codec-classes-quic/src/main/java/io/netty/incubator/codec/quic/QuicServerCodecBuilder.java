@@ -17,6 +17,7 @@ package io.netty.incubator.codec.quic;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.util.AttributeKey;
 import io.netty.util.internal.ObjectUtil;
 
@@ -41,6 +42,7 @@ public final class QuicServerCodecBuilder extends QuicCodecBuilder<QuicServerCod
     private ChannelHandler streamHandler;
     private QuicConnectionIdGenerator connectionIdAddressGenerator;
     private QuicTokenHandler tokenHandler;
+    private EventLoopGroup workerGroup;
 
     /**
      * Creates a new instance.
@@ -59,6 +61,17 @@ public final class QuicServerCodecBuilder extends QuicCodecBuilder<QuicServerCod
         streamHandler = builder.streamHandler;
         connectionIdAddressGenerator = builder.connectionIdAddressGenerator;
         tokenHandler = builder.tokenHandler;
+    }
+
+    /**
+     * These {@link EventLoopGroup}'s are used to handle all the events and IO for {@link QuicChannel}.
+     */
+    public QuicServerCodecBuilder group(EventLoopGroup workerGroup) {
+        if (this.workerGroup != null) {
+            throw new IllegalStateException("workerGroup set already");
+        }
+        this.workerGroup = ObjectUtil.checkNotNull(workerGroup, "workerGroup");
+        return self();
     }
 
     @Override
@@ -195,8 +208,9 @@ public final class QuicServerCodecBuilder extends QuicCodecBuilder<QuicServerCod
         }
         ChannelHandler handler = this.handler;
         ChannelHandler streamHandler = this.streamHandler;
+        EventLoopGroup workerGroup = this.workerGroup;
         return new QuicheQuicServerCodec(config, localConnIdLength, tokenHandler, generator, flushStrategy,
-                sslEngineProvider, sslTaskExecutor, handler,
+                sslEngineProvider, sslTaskExecutor, workerGroup, handler,
                 Quic.toOptionsArray(options), Quic.toAttributesArray(attrs),
                 streamHandler, Quic.toOptionsArray(streamOptions), Quic.toAttributesArray(streamAttrs));
     }
