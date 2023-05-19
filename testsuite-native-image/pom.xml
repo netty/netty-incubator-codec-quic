@@ -26,6 +26,15 @@
   <packaging>${packaging.type}</packaging>
   <name>Netty/Testsuite/NativeImage</name>
 
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>netty-incubator-codec-classes-quic</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+
   <!-- Profiles related to native-image -->
   <profiles>
     <profile>
