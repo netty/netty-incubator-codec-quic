@@ -26,24 +26,23 @@
   <packaging>${packaging.type}</packaging>
   <name>Netty/Testsuite/NativeImage</name>
 
-  <dependencies>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>netty-incubator-codec-native-quic</artifactId>
-      <version>${project.version}</version>
-      <classifier>${os.detected.classifier}</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-  </dependencies>
-
   <!-- Profiles related to native-image -->
   <profiles>
     <profile>
       <id>native-image-quic-server</id>
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>netty-incubator-codec-native-quic</artifactId>
+          <version>${project.version}</version>
+          <classifier>${os.detected.classifier}</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk15on</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
       <build>
         <plugins>
           <plugin>
@@ -99,6 +98,19 @@
     </profile>
     <profile>
       <id>native-image-quic-client</id>
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>netty-incubator-codec-native-quic</artifactId>
+          <version>${project.version}</version>
+          <classifier>${os.detected.classifier}</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk15on</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
       <build>
         <plugins>
           <plugin>
