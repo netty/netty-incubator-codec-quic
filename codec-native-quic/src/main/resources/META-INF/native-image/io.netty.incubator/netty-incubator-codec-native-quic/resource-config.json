@@ -1,0 +1,14 @@
+{
+  "resources":{
+  "includes":[
+    {
+      "condition":{"typeReachable":"io.netty.incubator.codec.quic.Quiche"},
+      "pattern":"\\QMETA-INF/native/libnetty_quiche_osx_x86_64.jnilib\\E"
+    },
+    {
+      "condition":{"typeReachable":"io.netty.incubator.codec.quic.Quiche"},
+      "pattern":"\\QMETA-INF/native/libnetty_quiche_linux_x86_64.so\\E"
+    }
+  ]},
+  "bundles":[]
+}
