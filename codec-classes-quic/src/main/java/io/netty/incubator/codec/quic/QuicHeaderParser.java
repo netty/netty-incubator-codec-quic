@@ -100,8 +100,8 @@ public final class QuicHeaderParser implements AutoCloseable {
         if (closed) {
             throw new IllegalStateException("QuicHeaderParser is already closed");
         }
-        long contentAddress = Quiche.memoryAddress(packet) + packet.readerIndex();
         int contentReadable = packet.readableBytes();
+        long contentAddress = Quiche.memoryAddress(packet, packet.readerIndex(), contentReadable);
 
         // Ret various len values so quiche_header_info can make use of these.
         scidLenBuffer.setInt(0, Quiche.QUICHE_MAX_CONN_ID_LEN);
@@ -109,10 +109,14 @@ public final class QuicHeaderParser implements AutoCloseable {
         tokenLenBuffer.setInt(0, maxTokenLength);
 
         int res = Quiche.quiche_header_info(contentAddress, contentReadable, localConnectionIdLength,
-                Quiche.memoryAddress(versionBuffer), Quiche.memoryAddress(typeBuffer),
-                Quiche.memoryAddress(scidBuffer), Quiche.memoryAddress(scidLenBuffer),
-                Quiche.memoryAddress(dcidBuffer), Quiche.memoryAddress(dcidLenBuffer),
-                Quiche.memoryAddress(tokenBuffer), Quiche.memoryAddress(tokenLenBuffer));
+                Quiche.memoryAddress(versionBuffer, 0, versionBuffer.capacity()),
+                Quiche.memoryAddress(typeBuffer, 0, typeBuffer.capacity()),
+                Quiche.memoryAddress(scidBuffer, 0, scidBuffer.capacity()),
+                Quiche.memoryAddress(scidLenBuffer, 0, scidLenBuffer.capacity()),
+                Quiche.memoryAddress(dcidBuffer, 0, dcidBuffer.capacity()),
+                Quiche.memoryAddress(dcidLenBuffer, 0, dcidLenBuffer.capacity()),
+                Quiche.memoryAddress(tokenBuffer, 0 , tokenBuffer.capacity()),
+                Quiche.memoryAddress(tokenLenBuffer,0 , tokenLenBuffer.capacity()));
         if (res >= 0) {
             int version = versionBuffer.getInt(0);
             byte type = typeBuffer.getByte(0);

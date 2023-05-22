@@ -672,10 +672,12 @@ final class Quiche {
     /**
      * Returns the memory address if the {@link ByteBuf}
      */
-    static long memoryAddress(ByteBuf buf) {
+    static long memoryAddress(ByteBuf buf, int offset, int length) {
         assert buf.isDirect();
-        return buf.hasMemoryAddress() ? buf.memoryAddress() :
-                memoryAddressWithPosition(buf.internalNioBuffer(buf.readerIndex(), buf.readableBytes()));
+        if (buf.hasMemoryAddress()) {
+            return buf.memoryAddress() + offset;
+        }
+        return memoryAddressWithPosition(buf.internalNioBuffer(offset, length));
     }
 
     /**

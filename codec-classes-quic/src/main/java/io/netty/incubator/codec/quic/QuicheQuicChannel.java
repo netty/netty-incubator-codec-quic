@@ -358,12 +358,15 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         try {
             int fromSockaddrLen = SockaddrIn.setAddress(fromSockaddrMemory, local);
             int toSockaddrLen = SockaddrIn.setAddress(toSockaddrMemory, remote);
-            QuicheQuicConnection connection = quicheEngine.createConnection(ssl ->
-                    Quiche.quiche_conn_new_with_tls(Quiche.memoryAddress(idBuffer) + idBuffer.readerIndex(),
-                            idBuffer.readableBytes(), -1, -1,
-                            Quiche.memoryAddressWithPosition(fromSockaddrMemory), fromSockaddrLen,
-                            Quiche.memoryAddressWithPosition(toSockaddrMemory), toSockaddrLen,
-                            configAddr, ssl, false));
+            QuicheQuicConnection connection = quicheEngine.createConnection(ssl -> {
+                long idAddr = Quiche.memoryAddress(idBuffer, idBuffer.readerIndex(), idBuffer.readableBytes());
+
+                return Quiche.quiche_conn_new_with_tls(idAddr,
+                        idBuffer.readableBytes(), -1, -1,
+                        Quiche.memoryAddressWithPosition(fromSockaddrMemory), fromSockaddrLen,
+                        Quiche.memoryAddressWithPosition(toSockaddrMemory), toSockaddrLen,
+                        configAddr, ssl, false);
+            });
             if (connection == null) {
                 failConnectPromiseAndThrow(new ConnectException());
                 return;
@@ -589,8 +592,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         boolean written = connectionSend();
 
         failPendingConnectPromise();
+        long reasonAddr = Quiche.memoryAddress(reason, reason.readerIndex(), reason.readableBytes());
         Quiche.throwIfError(Quiche.quiche_conn_close(connectionAddressChecked(), app, err,
-                Quiche.memoryAddress(reason) + reason.readerIndex(), reason.readableBytes()));
+                reasonAddr, reason.readableBytes()));
 
         // As we called quiche_conn_close(...) we need to ensure we will call quiche_conn_send(...) either
         // now or we will do so once we see the channelReadComplete event.
@@ -694,8 +698,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     private int sendDatagram(ByteBuf buf) throws ClosedChannelException {
-        return Quiche.quiche_conn_dgram_send(connectionAddressChecked(),
-                Quiche.memoryAddress(buf) + buf.readerIndex(), buf.readableBytes());
+        long bufAddr = Quiche.memoryAddress(buf, buf.readerIndex(), buf.readableBytes());
+        return Quiche.quiche_conn_dgram_send(connectionAddressChecked(), bufAddr, buf.readableBytes());
     }
 
     @Override
@@ -853,8 +857,9 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     private int streamSend0(long streamId, ByteBuf buffer, boolean fin) throws ClosedChannelException {
-        return Quiche.quiche_conn_stream_send(connectionAddressChecked(), streamId,
-                Quiche.memoryAddress(buffer) + buffer.readerIndex(), buffer.readableBytes(), fin);
+        long bufAddr = Quiche.memoryAddress(buffer, buffer.readerIndex(), buffer.readableBytes());
+        return Quiche.quiche_conn_stream_send(
+                connectionAddressChecked(), streamId, bufAddr, buffer.readableBytes(), fin);
     }
 
     private int streamSend(long streamId, ByteBuffer buffer, boolean fin) throws ClosedChannelException {
@@ -867,9 +872,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             finBuffer = alloc().directBuffer(1);
         }
         int writerIndex = buffer.writerIndex();
-        long memoryAddress = Quiche.memoryAddress(buffer);
+        long memoryAddress = Quiche.memoryAddress(buffer, writerIndex, buffer.writableBytes());
+        long finAddr =  Quiche.memoryAddress(finBuffer, 0, finBuffer.capacity());
         int recvLen = Quiche.quiche_conn_stream_recv(connectionAddressChecked(), streamId,
-                memoryAddress + writerIndex, buffer.writableBytes(), Quiche.memoryAddress(finBuffer));
+                memoryAddress, buffer.writableBytes(), finAddr);
         if (Quiche.throwIfError(recvLen)) {
             return StreamRecvResult.DONE;
         } else {
@@ -1051,8 +1057,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
                 boolean done;
                 int writerIndex = out.writerIndex();
+                int writableBytes = out.writableBytes();
+                long outAddr = Quiche.memoryAddress(out, writerIndex, writableBytes);
                 int written = Quiche.quiche_conn_send(
-                        connAddr, Quiche.memoryAddress(out) + writerIndex, out.writableBytes(),
+                        connAddr, outAddr, writableBytes,
                         Quiche.memoryAddressWithPosition(sendInfo));
                 if (written == 0) {
                     out.release();
@@ -1173,10 +1181,11 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             int len = calculateSendBufferLength(connAddr, maxDatagramSize);
             ByteBuf out = alloc().directBuffer(len);
             int writerIndex = out.writerIndex();
+            int writableBytes = out.writableBytes();
+            long outAddr = Quiche.memoryAddress(out, writerIndex, writableBytes);
 
             int written = Quiche.quiche_conn_send(
-                    connAddr, Quiche.memoryAddress(out) + writerIndex, out.writableBytes(),
-                    Quiche.memoryAddressWithPosition(sendInfo));
+                    connAddr, outAddr, writableBytes, Quiche.memoryAddressWithPosition(sendInfo));
 
             try {
                 if (Quiche.throwIfError(written)) {
@@ -1406,9 +1415,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                     tmpBuffer.writeBytes(buffer);
                     buffer = tmpBuffer;
                 }
-                int bufferReaderIndex = buffer.readerIndex();
-                long memoryAddress = Quiche.memoryAddress(buffer) + bufferReaderIndex;
-
+                int readerIndex = buffer.readerIndex();
+                int readableBytes = buffer.readableBytes();
+                long memoryAddress = Quiche.memoryAddress(buffer, readerIndex, readableBytes);
+                long oldMemoryAddress = memoryAddress;
                 ByteBuffer recvInfo = connection.nextRecvInfo();
                 QuicheRecvInfo.setRecvInfo(recvInfo, sender, recipient);
 
@@ -1463,7 +1473,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                         bufferReadable -= res;
                     } while (bufferReadable > 0);
                 } finally {
-                    buffer.skipBytes((int) (memoryAddress - Quiche.memoryAddress(buffer)));
+                    buffer.skipBytes((int) (memoryAddress - oldMemoryAddress));
                     if (tmpBuffer != null) {
                         tmpBuffer.release();
                     }
