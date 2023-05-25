@@ -97,6 +97,9 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
             connections.clear();
 
             needsFireChannelReadComplete.clear();
+            if (pendingPackets > 0) {
+                flushNow(ctx);
+            }
         } finally {
             config.free();
             if (senderSockaddrMemory != null) {
@@ -205,10 +208,10 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     @Override
     public final void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)  {
+        pendingPackets ++;
         int size = estimatorHandle.size(msg);
         if (size > 0) {
             pendingBytes += size;
-            pendingPackets ++;
         }
         try {
             ctx.write(msg, promise);
@@ -223,7 +226,7 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
         // processing all channels.
         if (inChannelReadComplete) {
             flushIfNeeded(ctx);
-        } else if (pendingBytes > 0) {
+        } else if (pendingPackets > 0) {
             flushNow(ctx);
         }
     }
