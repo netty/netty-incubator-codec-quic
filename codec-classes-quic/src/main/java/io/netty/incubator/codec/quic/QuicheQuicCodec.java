@@ -180,10 +180,10 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
                 }
             }
         } finally {
-            if (pendingBytes > 0) {
+            inChannelReadComplete = false;
+            if (pendingPackets > 0) {
                 flushNow(ctx);
             }
-            inChannelReadComplete = false;
         }
     }
 
