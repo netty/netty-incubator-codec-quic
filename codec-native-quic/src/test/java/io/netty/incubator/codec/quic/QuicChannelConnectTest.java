@@ -39,6 +39,7 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.opentest4j.AssertionFailedError;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -72,7 +73,6 @@ import java.util.function.Consumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -605,7 +605,6 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                 .build();
         Channel channel = QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor, sslContext)
                 .sslEngineProvider(q -> sslContext.newEngine(q.alloc(), "localhost", 9999)));
-        final CountDownLatch errorLatch = new CountDownLatch(1);
         final CountDownLatch streamLatch = new CountDownLatch(1);
         final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
@@ -615,20 +614,7 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                         @Override
                         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
                             if (evt instanceof SslEarlyDataReadyEvent) {
-                                ((QuicChannel) ctx.channel()).createStream(QuicStreamType.BIDIRECTIONAL,
-                                        new ChannelInboundHandlerAdapter()).addListener(f -> {
-                                    try {
-                                        QuicException exception = assertInstanceOf(QuicException.class, f.cause());
-                                        // This is expected as we didn't receive the transport params yet.
-                                        // Creating a new stream will only work once we create the next connection
-                                        // as part of 0-RTT.
-                                        assertEquals(QuicError.STREAM_LIMIT, exception.error());
-                                    } catch (Throwable error) {
-                                        errorRef.set(error);
-                                    } finally {
-                                        errorLatch.countDown();
-                                    }
-                                });
+                                errorRef.set(new AssertionFailedError("Shouldn't be called on the first connection"));
                             }
                             ctx.fireUserEventTriggered(evt);
                         }
@@ -638,12 +624,11 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     .connect()
                     .get();
 
-            errorLatch.await();
+            quicChannel.close().sync();
+
             if (errorRef.get() != null) {
                 throw errorRef.get();
             }
-
-            quicChannel.closeFuture().sync();
 
             quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
                     .handler(new ChannelInboundHandlerAdapter() {
