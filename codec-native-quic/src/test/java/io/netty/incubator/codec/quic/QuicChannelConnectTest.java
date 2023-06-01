@@ -19,7 +19,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
@@ -597,11 +596,15 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     @Override
                     public void channelRead(ChannelHandlerContext ctx, Object msg) {
                         ByteBuf buffer = (ByteBuf) msg;
-                        assertEquals(4, buffer.readableBytes());
-                        assertEquals(1, buffer.readInt());
-                        readLatch.countDown();
-                        ctx.close();
-                        ctx.channel().parent().close();
+                        try {
+                            assertEquals(4, buffer.readableBytes());
+                            assertEquals(1, buffer.readInt());
+                            readLatch.countDown();
+                            ctx.close();
+                            ctx.channel().parent().close();
+                        } finally {
+                            buffer.release();
+                        }
                     }
                 });
         InetSocketAddress address = (InetSocketAddress) server.localAddress();
