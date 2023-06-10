@@ -676,7 +676,6 @@ static void netty_quiche_config_set_stateless_reset_token(JNIEnv* env, jclass cl
     free(token_buf);
 }
 
-
 static void netty_quiche_config_free(JNIEnv* env, jclass clazz, jlong config) {
     quiche_config_free((quiche_config*) config);
 }
