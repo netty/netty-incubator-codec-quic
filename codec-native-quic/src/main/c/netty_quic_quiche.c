@@ -584,7 +584,9 @@ static jint netty_quiche_conn_dgram_send(JNIEnv* env, jclass clazz, jlong conn, 
 static jint netty_quiche_conn_set_session(JNIEnv* env, jclass clazz, jlong conn, jbyteArray sessionBytes) {
     int buf_len = (*env)->GetArrayLength(env, sessionBytes);
     uint8_t* buf = (uint8_t*) (*env)->GetByteArrayElements(env, sessionBytes, 0);
-    return (jint) quiche_conn_set_session((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len);
+    int result = (jint) quiche_conn_set_session((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len);
+    (*env)->ReleaseByteArrayElements(env, sessionBytes, (jbyte*) buf, JNI_ABORT);
+    return result;
 }
 
 static jint netty_quiche_conn_max_send_udp_payload_size(JNIEnv* env, jclass clazz, jlong conn) {
@@ -665,9 +667,15 @@ static void netty_quiche_config_set_active_connection_id_limit(JNIEnv* env, jcla
 }
 
 static void netty_quiche_config_set_stateless_reset_token(JNIEnv* env, jclass clazz, jlong config, jbyteArray token) {
-    uint8_t* buf = (uint8_t*) (*env)->GetByteArrayElements(env, token, 0);
-    quiche_config_set_stateless_reset_token((quiche_config*) config, buf);
+    jbyte* buf = (*env)->GetByteArrayElements(env, token, NULL);
+    jsize buf_len = (*env)->GetArrayLength(env, token);
+    uint8_t* token_buf = (uint8_t*) malloc(buf_len * sizeof(uint8_t));
+    memcpy(token_buf, buf, buf_len);
+    (*env)->ReleaseByteArrayElements(env, token, buf, JNI_ABORT);
+    quiche_config_set_stateless_reset_token((quiche_config*) config, token_buf);
+    free(token_buf);
 }
+
 
 static void netty_quiche_config_free(JNIEnv* env, jclass clazz, jlong config) {
     quiche_config_free((quiche_config*) config);
