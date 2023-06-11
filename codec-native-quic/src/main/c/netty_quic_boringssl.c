@@ -185,9 +185,15 @@ static STACK_OF(CRYPTO_BUFFER)* arrayToStack(JNIEnv* env, jobjectArray array, CR
             CRYPTO_BUFFER_free(buffer);
             goto cleanup;
         }
+        (*env)->ReleaseByteArrayElements(env, bytes, (jbyte*)data, 0);
+        (*env)->DeleteLocalRef(env, bytes);
     }
     return stack;
 cleanup:
+    for (int j = 0; j < sk_CRYPTO_BUFFER_num(stack); j++) {
+        CRYPTO_BUFFER *buffer = sk_CRYPTO_BUFFER_value(stack, j);
+        CRYPTO_BUFFER_free(buffer);
+    }
     sk_CRYPTO_BUFFER_pop_free(stack, CRYPTO_BUFFER_free);
     return NULL;
 }
@@ -496,13 +502,15 @@ static enum ssl_private_key_result_t netty_boringssl_private_key_complete_java(S
 
         arrayLen = (*e)->GetArrayLength(e, resultBytes);
         if (max_out < arrayLen) {
-             // We need to fail as otherwise we would end up writing into memory which does not
-             // belong to us.
+            // We need to fail as otherwise we would end up writing into memory which does not
+            // belong to us.
+            (*e)->DeleteLocalRef(e, resultBytes);
             return ssl_private_key_failure;
         }
         b = (*e)->GetByteArrayElements(e, resultBytes, NULL);
         memcpy(out, b, arrayLen);
-        (*e)->ReleaseByteArrayElements(e, resultBytes, b, JNI_ABORT);
+        (*e)->ReleaseByteArrayElements(e, resultBytes, b, 0);
+        (*e)->DeleteLocalRef(e, resultBytes);
         *out_len = arrayLen;
         return ssl_private_key_success;
     }
@@ -1222,8 +1230,10 @@ jlong netty_boringssl_EVP_PKEY_parse(JNIEnv* env, jclass clazz, jbyteArray array
         (*env)->ReleaseStringUTFChars(env, password, charPass);
     }
     if (key == NULL) {
+        (*env)->ReleaseByteArrayElements(env, array, (jbyte*)data, JNI_ABORT);
         return -1;
     }
+    (*env)->ReleaseByteArrayElements(env, array, (jbyte*)data, JNI_ABORT);
     return (jlong) key;
 }
 
