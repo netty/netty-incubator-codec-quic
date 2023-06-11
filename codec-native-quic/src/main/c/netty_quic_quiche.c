@@ -584,9 +584,7 @@ static jint netty_quiche_conn_dgram_send(JNIEnv* env, jclass clazz, jlong conn, 
 static jint netty_quiche_conn_set_session(JNIEnv* env, jclass clazz, jlong conn, jbyteArray sessionBytes) {
     int buf_len = (*env)->GetArrayLength(env, sessionBytes);
     uint8_t* buf = (uint8_t*) (*env)->GetByteArrayElements(env, sessionBytes, 0);
-    int result = (jint) quiche_conn_set_session((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len);
-    (*env)->ReleaseByteArrayElements(env, sessionBytes, (jbyte*) buf, JNI_ABORT);
-    return result;
+    return (jint) quiche_conn_set_session((quiche_conn *) conn, (uint8_t *) buf, (size_t) buf_len);
 }
 
 static jint netty_quiche_conn_max_send_udp_payload_size(JNIEnv* env, jclass clazz, jlong conn) {
