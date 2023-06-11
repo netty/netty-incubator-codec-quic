@@ -1225,11 +1225,10 @@ jlong netty_boringssl_EVP_PKEY_parse(JNIEnv* env, jclass clazz, jbyteArray array
     if (charPass != NULL) {
         (*env)->ReleaseStringUTFChars(env, password, charPass);
     }
+    (*env)->ReleaseByteArrayElements(env, array, (jbyte*)data, JNI_ABORT);
     if (key == NULL) {
-        (*env)->ReleaseByteArrayElements(env, array, (jbyte*)data, JNI_ABORT);
         return -1;
     }
-    (*env)->ReleaseByteArrayElements(env, array, (jbyte*)data, JNI_ABORT);
     return (jlong) key;
 }
 
