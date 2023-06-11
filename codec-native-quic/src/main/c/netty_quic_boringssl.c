@@ -185,7 +185,7 @@ static STACK_OF(CRYPTO_BUFFER)* arrayToStack(JNIEnv* env, jobjectArray array, CR
             CRYPTO_BUFFER_free(buffer);
             goto cleanup;
         }
-        (*env)->ReleaseByteArrayElements(env, bytes, (jbyte*)data, 0);
+        (*env)->ReleaseByteArrayElements(env, bytes, (jbyte*)data, JNI_ABORT);
         (*env)->DeleteLocalRef(env, bytes);
     }
     return stack;
