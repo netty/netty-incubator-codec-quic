@@ -190,10 +190,6 @@ static STACK_OF(CRYPTO_BUFFER)* arrayToStack(JNIEnv* env, jobjectArray array, CR
     }
     return stack;
 cleanup:
-    for (int j = 0; j < sk_CRYPTO_BUFFER_num(stack); j++) {
-        CRYPTO_BUFFER *buffer = sk_CRYPTO_BUFFER_value(stack, j);
-        CRYPTO_BUFFER_free(buffer);
-    }
     sk_CRYPTO_BUFFER_pop_free(stack, CRYPTO_BUFFER_free);
     return NULL;
 }
