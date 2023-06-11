@@ -498,14 +498,14 @@ static enum ssl_private_key_result_t netty_boringssl_private_key_complete_java(S
 
         arrayLen = (*e)->GetArrayLength(e, resultBytes);
         if (max_out < arrayLen) {
-            // We need to fail as otherwise we would end up writing into memory which does not
-            // belong to us.
+             // We need to fail as otherwise we would end up writing into memory which does not
+             // belong to us.
             (*e)->DeleteLocalRef(e, resultBytes);
             return ssl_private_key_failure;
         }
         b = (*e)->GetByteArrayElements(e, resultBytes, NULL);
         memcpy(out, b, arrayLen);
-        (*e)->ReleaseByteArrayElements(e, resultBytes, b, 0);
+        (*e)->ReleaseByteArrayElements(e, resultBytes, b, JNI_ABORT);
         (*e)->DeleteLocalRef(e, resultBytes);
         *out_len = arrayLen;
         return ssl_private_key_success;

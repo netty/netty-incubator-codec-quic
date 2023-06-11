@@ -667,13 +667,9 @@ static void netty_quiche_config_set_active_connection_id_limit(JNIEnv* env, jcla
 }
 
 static void netty_quiche_config_set_stateless_reset_token(JNIEnv* env, jclass clazz, jlong config, jbyteArray token) {
-    jbyte* buf = (*env)->GetByteArrayElements(env, token, NULL);
-    jsize buf_len = (*env)->GetArrayLength(env, token);
-    uint8_t* token_buf = (uint8_t*) malloc(buf_len * sizeof(uint8_t));
-    memcpy(token_buf, buf, buf_len);
-    (*env)->ReleaseByteArrayElements(env, token, buf, JNI_ABORT);
-    quiche_config_set_stateless_reset_token((quiche_config*) config, token_buf);
-    free(token_buf);
+    uint8_t* buf = (uint8_t*) (*env)->GetByteArrayElements(env, token, 0);
+    quiche_config_set_stateless_reset_token((quiche_config*) config, buf);
+    (*env)->ReleaseByteArrayElements(env, token, (jbyte*)buf, JNI_ABORT);
 }
 
 static void netty_quiche_config_free(JNIEnv* env, jclass clazz, jlong config) {
