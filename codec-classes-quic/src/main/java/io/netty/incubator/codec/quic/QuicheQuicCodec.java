@@ -266,12 +266,20 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
                     type, version, scid,
                     dcid, token);
             if (channel != null) {
+                boolean wasActive = channel.isActive();
                 // Add to queue first, we might be able to safe some flushes and consolidate them
                 // in channelReadComplete(...) this way.
                 if (channel.markInFireChannelReadCompleteQueue()) {
                     needsFireChannelReadComplete.add(channel);
                 }
                 channel.recv(recipient, sender, buffer);
+
+                if (!wasActive) {
+                    // The channel was not active yet, let's call connectionSendAndFlush() now to reduce the latency
+                    // during connection establishment. This will only really do a syscall when there were packets
+                    // written.
+                    channel.connectionSendAndFlush();
+                }
             }
         }
     }
