@@ -166,9 +166,6 @@ jobs:
       SDK_VER: "android-21"
       NDK_VER: "21.4.7075529"
     steps:
-      - name: Set environmental variables
-        run: echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/$NDK_VER" >> $GITHUB_ENV
-
       - name: Checkout code
         uses: actions/checkout@v3
 
