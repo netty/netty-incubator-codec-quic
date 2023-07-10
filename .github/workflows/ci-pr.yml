@@ -160,8 +160,6 @@ jobs:
             **/hs_err*.log
 
   build-pr-android:
-    # Disable until fixed
-    if: ${{ false }}
     runs-on: ubuntu-latest
     name: android
     env:
