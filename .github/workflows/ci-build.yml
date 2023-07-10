@@ -204,7 +204,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: ~/.m2/repository
-          key: pr-android-maven-cache-${{ hashFiles('**/pom.xml') }}
+          key: android-maven-cache-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             android-maven-cache-
 
@@ -214,7 +214,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: ${{ failure() }}
         with:
-          name: target
+          name: build-android-target
           path: |
             **/target/surefire-reports/
             **/hs_err*.log
