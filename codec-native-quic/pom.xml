@@ -915,8 +915,8 @@
                       <filter token="BORINGSSL_LIB_DIR" value="${boringsslHomeBuildWindowsDir}" />
                       <filter token="QUICHE_LIB_DIR" value="${quicheHomeBuildWindowsDir}" />
                       <filter token="QUICHE_LIB" value="${libquiche}" />
-                      <filter token="CRYPTO_LIB" value="crypto/${libcrypto}" />
-                      <filter token="SSL_LIB" value="ssl/${libssl}" />
+                      <filter token="CRYPTO_LIB" value="${libcrypto}" />
+                      <filter token="SSL_LIB" value="${libssl}" />
                       <copy file="src/main/native-package/vs2010.custom.props.template" tofile="${templateDir}/vs2010.custom.props" filtering="true" overwrite="true" verbose="true" />
                     </then>
                   </elseif>
