@@ -83,6 +83,9 @@ final class BoringSSLCertificateCallback {
                     KEY_TYPE_EC_RSA,
                     KEY_TYPE_EC_EC)));
 
+    // Directly returning this is safe as we never modify it within our JNI code.
+    private static final long[] NO_KEY_MATERIAL_CLIENT_SIDE =  new long[] { 0, 0 };
+
     private final QuicheQuicSslEngineMap engineMap;
     private final X509ExtendedKeyManager keyManager;
     private final String password;
@@ -102,7 +105,10 @@ final class BoringSSLCertificateCallback {
 
         try {
             if (keyManager == null) {
-                return new long[] { 0, 0 };
+                if (engine.getUseClientMode()) {
+                    return NO_KEY_MATERIAL_CLIENT_SIDE;
+                }
+                return null;
             }
             if (engine.getUseClientMode()) {
                 final Set<String> keyTypesSet = supportedClientKeyTypes(keyTypeBytes);
@@ -170,7 +176,7 @@ final class BoringSSLCertificateCallback {
         if (alias != null) {
             return selectMaterial(ssl, engine, alias) ;
         }
-        return null;
+        return NO_KEY_MATERIAL_CLIENT_SIDE;
     }
 
     private long[] selectMaterial(long ssl, QuicheQuicSslEngine engine, String alias)  {

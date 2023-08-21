@@ -44,6 +44,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.File;
@@ -55,6 +56,8 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.Principal;
+import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.CertificateException;
@@ -941,8 +944,14 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
 
     @ParameterizedTest
     @MethodSource("newSslTaskExecutors")
-    public void testConnectMutualAuthOptionalWithoutCertSuccess(Executor executor) throws Throwable {
-        testConnectMutualAuthSuccess(executor, MutalAuthTestMode.OPTIONAL_NO_CERT);
+    public void testConnectMutualAuthOptionalWithoutKeyManagerSuccess(Executor executor) throws Throwable {
+        testConnectMutualAuthSuccess(executor, MutalAuthTestMode.OPTIONAL_NO_KEYMANAGER);
+    }
+
+    @ParameterizedTest
+    @MethodSource("newSslTaskExecutors")
+    public void testConnectMutualAuthOptionalWithoutKeyInKeyManagerSuccess(Executor executor) throws Throwable {
+        testConnectMutualAuthSuccess(executor, MutalAuthTestMode.OPTIONAL_NO_KEY_IN_KEYMANAGER);
     }
 
     private void testConnectMutualAuthSuccess(Executor executor, MutalAuthTestMode mode) throws Throwable {
@@ -961,10 +970,50 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
         QuicSslContextBuilder clientSslCtxBuilder = QuicSslContextBuilder.forClient()
                 .trustManager(InsecureTrustManagerFactory.INSTANCE)
                 .applicationProtocols(QuicTestUtils.PROTOS);
-        if (mode == MutalAuthTestMode.OPTIONAL_CERT || mode == MutalAuthTestMode.REQUIRED) {
-            clientSslCtxBuilder.keyManager(
-                    QuicTestUtils.SELF_SIGNED_CERTIFICATE.privateKey(), null,
-                    QuicTestUtils.SELF_SIGNED_CERTIFICATE.certificate());
+        switch (mode) {
+            case OPTIONAL_CERT:
+            case REQUIRED:
+                clientSslCtxBuilder.keyManager(
+                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.privateKey(), null,
+                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.certificate());
+                break;
+            case OPTIONAL_NO_KEY_IN_KEYMANAGER:
+                clientSslCtxBuilder.keyManager(new X509ExtendedKeyManager() {
+                    @Override
+                    public String[] getClientAliases(String keyType, Principal[] issuers) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
+                        return null;
+                    }
+
+                    @Override
+                    public String[] getServerAliases(String keyType, Principal[] issuers) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public X509Certificate[] getCertificateChain(String alias) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public PrivateKey getPrivateKey(String alias) {
+                        throw new UnsupportedOperationException();
+                    }
+                }, null);
+                break;
+            case OPTIONAL_NO_KEYMANAGER:
+                break;
+            default:
+                throw new IllegalStateException();
         }
 
         Channel channel = QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor,
@@ -993,7 +1042,8 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
     private enum MutalAuthTestMode {
         REQUIRED,
         OPTIONAL_CERT,
-        OPTIONAL_NO_CERT
+        OPTIONAL_NO_KEYMANAGER,
+        OPTIONAL_NO_KEY_IN_KEYMANAGER
     }
 
     @ParameterizedTest
