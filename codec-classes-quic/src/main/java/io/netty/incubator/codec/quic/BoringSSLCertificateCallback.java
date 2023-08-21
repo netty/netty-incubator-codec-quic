@@ -102,8 +102,7 @@ final class BoringSSLCertificateCallback {
 
         try {
             if (keyManager == null) {
-                engineMap.remove(ssl);
-                return null;
+                return new long[] { 0, 0 };
             }
             if (engine.getUseClientMode()) {
                 final Set<String> keyTypesSet = supportedClientKeyTypes(keyTypeBytes);
