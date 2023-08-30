@@ -46,6 +46,13 @@ jobs:
     runs-on: ubuntu-latest
     name: ${{ matrix.setup }} build
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: false
+
       - uses: actions/checkout@v3
 
       # Cache .m2/repository
@@ -168,6 +175,13 @@ jobs:
       SDK_VER: "android-21"
       NDK_VER: "25.2.9519653"
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: false
+
       - name: Checkout code
         uses: actions/checkout@v3
 
