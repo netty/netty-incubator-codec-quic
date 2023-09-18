@@ -33,12 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     name: linux-x86_64
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
         with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: false
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
 
       - uses: actions/checkout@v3
 
@@ -80,12 +79,11 @@ jobs:
     runs-on: ubuntu-latest
     name: linux-aarch64
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
         with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: false
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
 
       - uses: actions/checkout@v3
 

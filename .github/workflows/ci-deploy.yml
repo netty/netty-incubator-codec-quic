@@ -43,12 +43,11 @@ jobs:
 
     name: stage-snapshot-${{ matrix.setup }}
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
         with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: false
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
 
       - uses: actions/checkout@v3
 
@@ -166,12 +165,11 @@ jobs:
     # Wait until we have staged everything
     needs: [stage-snapshot-linux, stage-snapshot-windows-x86_64]
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
         with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: false
+          remove-dotnet: 'true'
+          remove-haskell: 'true'
 
       - uses: actions/checkout@v3
 
