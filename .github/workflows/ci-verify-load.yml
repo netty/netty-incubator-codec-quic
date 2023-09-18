@@ -89,6 +89,7 @@ jobs:
           install: |
             apt-get update -q -y
             apt-get install -q -y openjdk-11-jdk
+            apt-get clean -q -y
 
           # Check if we can load the native code on aarch64
           run: |
