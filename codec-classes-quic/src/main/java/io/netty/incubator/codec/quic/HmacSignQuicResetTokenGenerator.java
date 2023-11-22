@@ -17,13 +17,7 @@ package io.netty.incubator.codec.quic;
 
 import io.netty.util.internal.ObjectUtil;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Arrays;
 
 /**
  * A {@link QuicResetTokenGenerator} which creates new reset token by using the connection id by signing the given input
@@ -32,40 +26,14 @@ import java.util.Arrays;
 final class HmacSignQuicResetTokenGenerator implements QuicResetTokenGenerator {
     static final QuicResetTokenGenerator INSTANCE = new HmacSignQuicResetTokenGenerator();
 
-    private static final String ALGORITM = "HmacSHA256";
-    private static final byte[] randomKey = new byte[Quic.RESET_TOKEN_LEN];
-
-    static {
-        new SecureRandom().nextBytes(randomKey);
-    }
-
     private HmacSignQuicResetTokenGenerator() {
     }
 
-    private static Mac newMac() {
-        try {
-            SecretKeySpec keySpec = new SecretKeySpec(randomKey, ALGORITM);
-            Mac mac = Mac.getInstance(ALGORITM);
-            mac.init(keySpec);
-            return mac;
-        } catch (NoSuchAlgorithmException | InvalidKeyException exception) {
-            throw new IllegalStateException(exception);
-        }
-    }
 
     @Override
     public ByteBuffer newResetToken(ByteBuffer cid) {
-        ObjectUtil.checkNotNull(cid, "buffer");
-        ObjectUtil.checkPositive(cid.remaining(), "buffer");
-
-        // TODO: Consider using a ThreadLocal.
-        Mac mac = newMac();
-        mac.update(cid);
-
-        byte[] signBytes = mac.doFinal();
-        if (signBytes.length != Quic.RESET_TOKEN_LEN) {
-            signBytes = Arrays.copyOf(signBytes, Quic.RESET_TOKEN_LEN);
-        }
-        return ByteBuffer.wrap(signBytes);
+        ObjectUtil.checkNotNull(cid, "cid");
+        ObjectUtil.checkPositive(cid.remaining(), "cid");
+        return Hmac.sign(cid, Quic.RESET_TOKEN_LEN);
     }
 }
