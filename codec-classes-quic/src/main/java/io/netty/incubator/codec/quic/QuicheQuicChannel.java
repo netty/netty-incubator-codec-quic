@@ -910,7 +910,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             long connAddr = connection.address();
             // Generate all extra source ids that we can provide. This will cause frames that need to be send. Which
             // is the reason why we might need to call connectionSendAndFlush().
-            int left = Quiche.quiche_conn_source_cids_left(connAddr);
+            int left = Quiche.quiche_conn_scids_left(connAddr);
             if (left > 0) {
                 List<ByteBuffer> generatedIds = new ArrayList<>(left);
                 boolean sendAndFlush = false;
@@ -925,7 +925,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                         connIdBuffer.writeBytes(srcId.duplicate());
                         ByteBuffer resetToken = resetTokenGenerator.newResetToken(srcId.duplicate());
                         resetToken.get(resetTokenArray);
-                        long result = Quiche.quiche_conn_new_source_cid(
+                        long result = Quiche.quiche_conn_new_scid(
                                 connAddr, Quiche.memoryAddress(connIdBuffer, 0, connIdBuffer.readableBytes()),
                                 connIdBuffer.readableBytes(), resetTokenArray, false);
                         if (result < 0) {

@@ -547,9 +547,9 @@ final class Quiche {
      */
     static native int quiche_conn_max_send_udp_payload_size(long connAddr);
 
-    static native int quiche_conn_source_cids_left(long connAddr);
+    static native int quiche_conn_scids_left(long connAddr);
 
-    static native long quiche_conn_new_source_cid(long connAddr, long scidAddr, int scidLen, byte[] resetToken, boolean retire_if_needed);
+    static native long quiche_conn_new_scid(long connAddr, long scidAddr, int scidLen, byte[] resetToken, boolean retire_if_needed);
 
     static native byte[] quiche_conn_retired_scid_next(long connAddr);
 
