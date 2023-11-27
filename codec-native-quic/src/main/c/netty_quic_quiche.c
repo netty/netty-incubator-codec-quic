@@ -417,7 +417,7 @@ static jbyteArray to_byte_array(JNIEnv* env, const uint8_t* bytes, size_t len) {
 }
 
 static jint netty_quiche_conn_send_quantum(JNIEnv* env, jclass clazz, jlong conn) {
-    return quiche_conn_send_quantum((quiche_conn *) conn);
+    return (jint) quiche_conn_send_quantum((quiche_conn *) conn);
 }
 
 static jbyteArray netty_quiche_conn_trace_id(JNIEnv* env, jclass clazz, jlong conn) {
@@ -699,12 +699,12 @@ static jobject netty_new_socket_address(JNIEnv* env, const struct sockaddr_stora
     if (addr->ss_family == AF_INET) {
         struct sockaddr_in* s = (struct sockaddr_in*) addr;
         port = ntohs(s->sin_port);
-        jbyteArray array = to_byte_array(env, (uint8_t*) &s->sin_addr.s_addr, 4);
+        jbyteArray array = to_byte_array(env, (uint8_t*) &s->sin_addr.s_addr, (size_t) 4);
         address = (*env)->CallStaticObjectMethod(env, inet4address_class, inet4address_class_get_by_address, array);
     } else {
         struct sockaddr_in6* s = (struct sockaddr_in6*) addr;
         port = ntohs(s->sin6_port);
-        jbyteArray array = to_byte_array(env, (uint8_t*) &s->sin6_addr.s6_addr, 16);
+        jbyteArray array = to_byte_array(env, (uint8_t*) &s->sin6_addr.s6_addr, (size_t) 16);
         address = (*env)->CallStaticObjectMethod(env, inet6address_class, inet6address_class_get_by_address, NULL, array, (jint) s->sin6_scope_id);
     }
 
@@ -757,13 +757,13 @@ static jobjectArray netty_quiche_path_event_validated(JNIEnv* env, jclass clazz,
     return array;
 }
 
-static jobjectArray netty_quiche_path_event_failed_validated(JNIEnv* env, jclass clazz, jlong ev) {
+static jobjectArray netty_quiche_path_event_failed_validation(JNIEnv* env, jclass clazz, jlong ev) {
     struct sockaddr_storage local;
     socklen_t local_len;
     struct sockaddr_storage peer;
     socklen_t peer_len;
 
-    quiche_path_event_failed_validated((quiche_path_event *) ev, &local, &local_len, &peer, &peer_len);
+    quiche_path_event_failed_validation((quiche_path_event *) ev, &local, &local_len, &peer, &peer_len);
 
     jobject localAddr = netty_new_socket_address(env, &local);
     if (localAddr == NULL) {
@@ -1163,7 +1163,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "quiche_path_event_type", "(J)I", (void *) netty_quiche_path_event_type },
   { "quiche_path_event_new", "(J)[Ljava/lang/Object;", (void *) netty_quiche_path_event_new },
   { "quiche_path_event_validated", "(J)[Ljava/lang/Object;", (void *) netty_quiche_path_event_validated },
-  { "quiche_path_event_failed_validated", "(J)[Ljava/lang/Object;", (void *) netty_quiche_path_event_failed_validated },
+  { "quiche_path_event_failed_validation", "(J)[Ljava/lang/Object;", (void *) netty_quiche_path_event_failed_validation },
   { "quiche_path_event_closed", "(J)[Ljava/lang/Object;", (void *) netty_quiche_path_event_closed },
   { "quiche_path_event_reused_source_connection_id", "(J)[Ljava/lang/Object;", (void *) netty_quiche_path_event_reused_source_connection_id },
   { "quiche_path_event_peer_migrated", "(J)[Ljava/lang/Object;", (void *) netty_quiche_path_event_peer_migrated },

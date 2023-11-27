@@ -568,7 +568,7 @@ final class Quiche {
 
     static native Object[] quiche_path_event_new(long pathEvent);
     static native Object[] quiche_path_event_validated(long pathEvent);
-    static native Object[] quiche_path_event_failed_validated(long pathEvent);
+    static native Object[] quiche_path_event_failed_validation(long pathEvent);
     static native Object[]  quiche_path_event_closed(long pathEvent);
     static native Object[] quiche_path_event_reused_source_connection_id(long pathEvent);
     static native Object[] quiche_path_event_peer_migrated(long pathEvent);

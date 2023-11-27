@@ -50,7 +50,6 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
 import java.net.ConnectException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
@@ -1602,7 +1601,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                         InetSocketAddress peer = (InetSocketAddress) ret[1];
                         pipeline().fireUserEventTriggered(new QuicPathEvent.Validated(local, peer));
                     } else if (type == Quiche.QUICHE_PATH_EVENT_FAILED_VALIDATION) {
-                        Object[] ret = Quiche.quiche_path_event_failed_validated(event);
+                        Object[] ret = Quiche.quiche_path_event_failed_validation(event);
                         InetSocketAddress local = (InetSocketAddress) ret[0];
                         InetSocketAddress peer = (InetSocketAddress) ret[1];
                         pipeline().fireUserEventTriggered(new QuicPathEvent.FailedValidation(local, peer));
