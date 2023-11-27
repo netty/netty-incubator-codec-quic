@@ -54,9 +54,9 @@
     <quicheHomeDir>${project.build.directory}/quiche</quicheHomeDir>
     <quicheHomeBuildDir>${quicheHomeDir}/build</quicheHomeBuildDir>
     <quicheHomeIncludeDir>${quicheHomeDir}/quiche/include</quicheHomeIncludeDir>
-    <quicheRepository>https://github.com/normanmaurer/quiche</quicheRepository>
-    <quicheBranch>c_api_path_event</quicheBranch>
-    <quicheCommitSha>3fa221b2</quicheCommitSha>
+    <quicheRepository>https://github.com/cloudflare/quiche</quicheRepository>
+    <quicheBranch>master</quicheBranch>
+    <quicheCommitSha>5796adc0a06044e9e4f2020ad51f680bd0d071bc</quicheCommitSha>
     <generatedSourcesDir>${project.build.directory}/generated-sources</generatedSourcesDir>
     <templateDir>${project.build.directory}/template</templateDir>
     <cargoTarget />

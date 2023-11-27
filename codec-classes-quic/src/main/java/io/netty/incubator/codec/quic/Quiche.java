@@ -561,11 +561,9 @@ final class Quiche {
 
     static native byte[] quiche_conn_retired_scid_next(long connAddr);
 
-
     static native long quiche_conn_path_event_next(long connAddr);
     static native int quiche_path_event_type(long pathEvent);
     static native void quiche_path_event_free(long pathEvent);
-
     static native Object[] quiche_path_event_new(long pathEvent);
     static native Object[] quiche_path_event_validated(long pathEvent);
     static native Object[] quiche_path_event_failed_validation(long pathEvent);
