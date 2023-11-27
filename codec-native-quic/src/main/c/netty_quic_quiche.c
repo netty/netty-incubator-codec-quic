@@ -1081,7 +1081,6 @@ static const JNINativeMethod statically_referenced_fixed_method_table[] = {
   { "quiche_cc_reno", "()I", (void *) netty_quiche_cc_reno },
   { "quiche_cc_cubic", "()I", (void *) netty_quiche_cc_cubic },
   { "quiche_cc_bbr", "()I", (void *) netty_quiche_cc_bbr },
-
   { "quiche_path_event_new", "()I", (void *) netty_quiche_path_event_type_new },
   { "quiche_path_event_validated", "()I", (void *) netty_quiche_path_event_type_validated },
   { "quiche_path_event_failed_validation", "()I", (void *) netty_quiche_path_event_type_failed_validation },
@@ -1294,6 +1293,10 @@ done:
         NETTY_JNI_UTIL_UNLOAD_CLASS_WEAK(env, quiche_logger_class_weak);
         NETTY_JNI_UTIL_UNLOAD_CLASS(env, integer_class);
         NETTY_JNI_UTIL_UNLOAD_CLASS(env, boolean_class);
+        NETTY_JNI_UTIL_UNLOAD_CLASS(env, long_class);
+        NETTY_JNI_UTIL_UNLOAD_CLASS(env, inet4address_class);
+        NETTY_JNI_UTIL_UNLOAD_CLASS(env, inet6address_class);
+        NETTY_JNI_UTIL_UNLOAD_CLASS(env, inetsocketaddress_class);
         NETTY_JNI_UTIL_UNLOAD_CLASS(env, object_class);
 
         netty_jni_util_free_dynamic_methods_table(dynamicMethods, fixed_method_table_size, dynamicMethodsTableSize());
@@ -1309,11 +1312,9 @@ static void netty_quiche_JNI_OnUnload(JNIEnv* env) {
     NETTY_JNI_UTIL_UNLOAD_CLASS(env, integer_class);
     NETTY_JNI_UTIL_UNLOAD_CLASS(env, boolean_class);
     NETTY_JNI_UTIL_UNLOAD_CLASS(env, long_class);
-
     NETTY_JNI_UTIL_UNLOAD_CLASS(env, inet4address_class);
     NETTY_JNI_UTIL_UNLOAD_CLASS(env, inet6address_class);
     NETTY_JNI_UTIL_UNLOAD_CLASS(env, inetsocketaddress_class);
-
     NETTY_JNI_UTIL_UNLOAD_CLASS(env, object_class);
 
     netty_jni_util_unregister_natives(env, staticPackagePrefix, STATICALLY_CLASSNAME);
