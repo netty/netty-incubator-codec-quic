@@ -518,7 +518,7 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
     @ParameterizedTest
     @MethodSource("newSslTaskExecutors")
     @Timeout(value = 5000, unit = TimeUnit.MILLISECONDS)
-    public void testConnectAndGetAddressesAfterClose(Executor executor) throws Throwable {
+    public void testConnectAndGetAddresses(Executor executor) throws Throwable {
         AtomicReference<QuicChannel> acceptedRef = new AtomicReference<>();
         Channel server = QuicTestUtils.newServer(executor,
                 new ChannelInboundHandlerAdapter() {
@@ -549,8 +549,8 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
             while ((accepted = acceptedRef.get()) == null) {
                 Thread.sleep(50);
             }
-            assertNull(accepted.localAddress());
-            assertNull(accepted.remoteAddress());
+            assertNotNull(accepted.localAddress());
+            assertNotNull(accepted.remoteAddress());
         } finally {
             server.close().sync();
             // Close the parent Datagram channel as well.
