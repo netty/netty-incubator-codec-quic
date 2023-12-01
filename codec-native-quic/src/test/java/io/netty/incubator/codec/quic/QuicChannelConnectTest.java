@@ -538,21 +538,19 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     .remoteAddress(address)
                     .connect()
                     .get();
+            assertNotNull(quicChannel.localAddress());
+            assertNotNull(quicChannel.remoteAddress());
+
             quicChannel.close().sync();
             ChannelFuture closeFuture = quicChannel.closeFuture().await();
             assertTrue(closeFuture.isSuccess());
-
-            // Check if we also can access these after the channel was closed.
-            assertNotNull(quicChannel.localAddress());
-            assertNotNull(quicChannel.remoteAddress());
 
             QuicChannel accepted;
             while ((accepted = acceptedRef.get()) == null) {
                 Thread.sleep(50);
             }
-            // Check if we also can access these after the channel was closed.
-            assertNotNull(accepted.localAddress());
-            assertNotNull(accepted.remoteAddress());
+            assertNull(accepted.localAddress());
+            assertNull(accepted.remoteAddress());
         } finally {
             server.close().sync();
             // Close the parent Datagram channel as well.
