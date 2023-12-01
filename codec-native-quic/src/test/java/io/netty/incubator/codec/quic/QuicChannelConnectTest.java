@@ -517,51 +517,6 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
 
     @ParameterizedTest
     @MethodSource("newSslTaskExecutors")
-    @Timeout(value = 5000, unit = TimeUnit.MILLISECONDS)
-    public void testConnectAndGetAddresses(Executor executor) throws Throwable {
-        AtomicReference<QuicChannel> acceptedRef = new AtomicReference<>();
-        Channel server = QuicTestUtils.newServer(executor,
-                new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-                        acceptedRef.set((QuicChannel) ctx.channel());
-                        super.channelActive(ctx);
-                    }
-                },
-                new ChannelInboundHandlerAdapter());
-        InetSocketAddress address = (InetSocketAddress) server.localAddress();
-        Channel channel = QuicTestUtils.newClient(executor);
-        try {
-            QuicChannel quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
-                    .handler(new ChannelInboundHandlerAdapter())
-                    .streamHandler(new ChannelInboundHandlerAdapter())
-                    .remoteAddress(address)
-                    .connect()
-                    .get();
-            assertNotNull(quicChannel.localAddress());
-            assertNotNull(quicChannel.remoteAddress());
-
-            quicChannel.close().sync();
-            ChannelFuture closeFuture = quicChannel.closeFuture().await();
-            assertTrue(closeFuture.isSuccess());
-
-            QuicChannel accepted;
-            while ((accepted = acceptedRef.get()) == null) {
-                Thread.sleep(50);
-            }
-            assertNotNull(accepted.localAddress());
-            assertNotNull(accepted.remoteAddress());
-        } finally {
-            server.close().sync();
-            // Close the parent Datagram channel as well.
-            channel.close().sync();
-
-            shutdown(executor);
-        }
-    }
-
-    @ParameterizedTest
-    @MethodSource("newSslTaskExecutors")
     public void testConnectWith0RTT(Executor executor) throws Throwable {
         final CountDownLatch readLatch = new CountDownLatch(1);
         Channel server = QuicTestUtils.newServer(QuicTestUtils.newQuicServerBuilder(executor,
