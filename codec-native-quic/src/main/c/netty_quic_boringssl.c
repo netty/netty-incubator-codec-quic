@@ -36,10 +36,17 @@
 
 #define ERR_LEN 256
 
+
+
+
+// For encoding of keys see BoringSSLSessionTicketCallback.setSessionTicketKeys(...)
+#define SSL_SESSION_TICKET_KEY_NAME_OFFSET 1
+#define SSL_SESSION_TICKET_KEY_HMAC_OFFSET 17
+#define SSL_SESSION_TICKET_KEY_EVP_OFFSET 33
 #define SSL_SESSION_TICKET_KEY_NAME_LEN 16
 #define SSL_SESSION_TICKET_AES_KEY_LEN  16
 #define SSL_SESSION_TICKET_HMAC_KEY_LEN 16
-#define SSL_SESSION_TICKET_KEY_SIZE     48
+#define SSL_SESSION_TICKET_KEY_LEN 49
 
 static jweak sslTaskClassWeak = NULL;
 static jmethodID sslTaskDestroyMethod = NULL;
@@ -1307,11 +1314,6 @@ jstring netty_boringssl_ERR_last_error(JNIEnv* env, jclass clazz) {
     return (*env)->NewStringUTF(env, buf);
 }
 
-// For encoding of keys see BoringSSLSessionTicketCallback.setSessionTicketKeys(...)
-#define TICKET_KEY_NAME_OFFSET 1
-#define TICKET_KEY_HMAC_OFFSET 17
-#define TICKET_KEY_EVP_OFFSET 33
-
 static int netty_boringssl_tlsext_ticket_key_cb(SSL *s, unsigned char key_name[16], unsigned char *iv, EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc) {
     SSL_CTX *c = SSL_get_SSL_CTX(s);
     if (c == NULL) {
@@ -1330,17 +1332,21 @@ static int netty_boringssl_tlsext_ticket_key_cb(SSL *s, unsigned char key_name[1
     if (enc) { /* create new session */
         jbyteArray key = (jbyteArray) (*env)->CallObjectMethod(env, sessionTicketCallback, sessionTicketCallbackMethod, NULL);
         if (key != NULL) {
+            int keyLen = (*env)->GetArrayLength(env, key);
+            if (keyLen != SSL_SESSION_TICKET_KEY_LEN) {
+                return -1;
+            }
             if (RAND_bytes(iv, EVP_MAX_IV_LENGTH) <= 0) {
                 return -1; /* insufficient random */
             }
 
             uint8_t* data = (uint8_t*) (*env)->GetByteArrayElements(env, key, 0);
 
-            memcpy(key_name, data + TICKET_KEY_NAME_OFFSET, 16);
+            memcpy(key_name, data + SSL_SESSION_TICKET_KEY_NAME_OFFSET, SSL_SESSION_TICKET_KEY_NAME_LEN);
 
-            HMAC_Init_ex(hctx, (void*) (data + TICKET_KEY_HMAC_OFFSET), 16, EVP_sha256(), NULL);
+            HMAC_Init_ex(hctx, (void*) (data + SSL_SESSION_TICKET_KEY_HMAC_OFFSET), SSL_SESSION_TICKET_HMAC_KEY_LEN, EVP_sha256(), NULL);
 
-            EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (void*) (data + TICKET_KEY_EVP_OFFSET), iv);
+            EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (void*) (data + SSL_SESSION_TICKET_KEY_EVP_OFFSET), iv);
 
             (*env)->ReleaseByteArrayElements(env, key, (jbyte*) data, JNI_ABORT);
 
@@ -1353,13 +1359,18 @@ static int netty_boringssl_tlsext_ticket_key_cb(SSL *s, unsigned char key_name[1
         jbyteArray key = (jbyteArray) (*env)->CallObjectMethod(env, sessionTicketCallback, sessionTicketCallbackMethod, name);
 
         if (key != NULL) {
+            int keyLen = (*env)->GetArrayLength(env, key);
+            if (keyLen != SSL_SESSION_TICKET_KEY_LEN) {
+                return -1;
+            }
+
             uint8_t* data = (uint8_t*) (*env)->GetByteArrayElements(env, key, 0);
             // The first byte is used to encode if the key needs to be upgraded.
             int is_current_key = *data != 0;
 
-            HMAC_Init_ex(hctx, (void*) (data + TICKET_KEY_HMAC_OFFSET), 16, EVP_sha256(), NULL);
+            HMAC_Init_ex(hctx, (void*) (data + SSL_SESSION_TICKET_KEY_HMAC_OFFSET), SSL_SESSION_TICKET_HMAC_KEY_LEN, EVP_sha256(), NULL);
 
-            EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (void*) (data + TICKET_KEY_EVP_OFFSET), iv);
+            EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, (void*) (data + SSL_SESSION_TICKET_KEY_EVP_OFFSET), iv);
 
             (*env)->ReleaseByteArrayElements(env, key, (jbyte*) data, JNI_ABORT);
 
