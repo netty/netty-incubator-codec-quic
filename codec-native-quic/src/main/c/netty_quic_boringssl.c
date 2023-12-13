@@ -36,9 +36,6 @@
 
 #define ERR_LEN 256
 
-
-
-
 // For encoding of keys see BoringSSLSessionTicketCallback.setSessionTicketKeys(...)
 #define SSL_SESSION_TICKET_KEY_NAME_OFFSET 1
 #define SSL_SESSION_TICKET_KEY_HMAC_OFFSET 17
@@ -84,7 +81,6 @@ static jmethodID sessionCallbackMethod = NULL;
 
 static jweak sessionTicketCallbackClassWeak = NULL;
 static jmethodID sessionTicketCallbackMethod = NULL;
-
 
 static jclass byteArrayClass = NULL;
 static jclass stringClass = NULL;
@@ -1580,7 +1576,6 @@ jint netty_boringssl_JNI_OnLoad(JNIEnv* env, const char* packagePrefix) {
     NETTY_JNI_UTIL_LOAD_CLASS_WEAK(env, sessionCallbackClassWeak, name, done);
     NETTY_JNI_UTIL_NEW_LOCAL_FROM_WEAK(env, sessionCallbackClass, sessionCallbackClassWeak, done);
     NETTY_JNI_UTIL_GET_METHOD(env, sessionCallbackClass, sessionCallbackMethod, "newSession", "(JJJ[BZ[B)V", done);
-
 
     NETTY_JNI_UTIL_PREPEND(packagePrefix, "io/netty/incubator/codec/quic/BoringSSLSessionTicketCallback", name, done);
     NETTY_JNI_UTIL_LOAD_CLASS_WEAK(env, sessionTicketCallbackClassWeak, name, done);
