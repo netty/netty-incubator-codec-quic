@@ -343,9 +343,9 @@ final class QuicheQuicSslContext extends QuicSslContext {
     }
 
     void setSessionTicketKeys(SslSessionTicketKey[] ticketKeys) {
-        requireNonNull(ticketKeys, "ticketKeys");
         sessionTicketCallback.setSessionTicketKeys(ticketKeys);
-        BoringSSL.SSLContext_setSessionTicketKeys(nativeSslContext.address(), true);
+        BoringSSL.SSLContext_setSessionTicketKeys(
+                nativeSslContext.address(), ticketKeys != null && ticketKeys.length != 0);
     }
 
     @SuppressWarnings("deprecation")
