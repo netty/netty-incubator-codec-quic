@@ -156,7 +156,7 @@ jobs:
             **/hs_err*.log
 
   build-pr-android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: android
     env:
       SDK_VER: "android-21"
