@@ -34,9 +34,9 @@ class QuicChannelValidationHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        wasActive = true;
         localAddress = (QuicConnectionAddress) ctx.channel().localAddress();
         remoteAddress = (QuicConnectionAddress) ctx.channel().remoteAddress();
+        wasActive = true;
         ctx.fireChannelActive();
     }
 
