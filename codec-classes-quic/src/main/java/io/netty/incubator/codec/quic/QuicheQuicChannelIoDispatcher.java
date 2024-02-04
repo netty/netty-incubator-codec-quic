@@ -90,6 +90,9 @@ final class QuicheQuicChannelIoDispatcher {
             ids.add(id);
         }
         Set<ByteBuffer> oldIds = channelToConnectionIds.put(quicChannel, ids);
+        quicChannel.closeFuture().addListener(f -> {
+            remove(quicChannel);
+        });
         assert oldIds == null;
         if (id != null) {
             QuicheQuicChannel oldChannel = connectionIdToChannel.put(id, quicChannel);
@@ -97,7 +100,7 @@ final class QuicheQuicChannelIoDispatcher {
         }
     }
     
-    void remove(QuicheQuicChannel quicChannel) {
+    private void remove(QuicheQuicChannel quicChannel) {
         Set<ByteBuffer> ids = channelToConnectionIds.remove(quicChannel);
         if (ids != null) {
             for (ByteBuffer id : ids) {
@@ -121,7 +124,7 @@ final class QuicheQuicChannelIoDispatcher {
     void recvCompleteAll() {
         long nextTimeout = Long.MAX_VALUE;
         try {
-            for (; ; ) {
+            for (;;) {
                 QuicheQuicChannel quicChannel = channelRecvComplete.poll();
                 if (quicChannel == null) {
                     break;

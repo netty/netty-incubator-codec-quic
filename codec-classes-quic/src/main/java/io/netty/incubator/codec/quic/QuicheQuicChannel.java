@@ -434,8 +434,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             flushIoHandler();
             connection = null;
             conn.free();
-            // Remove from the handler registry
-            channelsIoHandler.remove(this);
         }
     }
 
@@ -866,7 +864,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         boolean complete = inFireChannelReadCompleteQueue;
         inFireChannelReadCompleteQueue = true;
         ((QuicChannelUnsafe) unsafe()).connectionRecv(sender, recipient, buffer);
-        return !complete;
+        return complete != inFireChannelReadCompleteQueue;
     }
 
     void processRetiredSourceConnectionId(BiConsumer<QuicheQuicChannel, ByteBuffer> consumer) {
