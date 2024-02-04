@@ -91,7 +91,7 @@ final class QuicheQuicChannelIoDispatcher {
         }
         Set<ByteBuffer> oldIds = channelToConnectionIds.put(quicChannel, ids);
         quicChannel.closeFuture().addListener(f -> {
-            remove(quicChannel);
+            //remove(quicChannel);
         });
         assert oldIds == null;
         if (id != null) {
@@ -171,7 +171,7 @@ final class QuicheQuicChannelIoDispatcher {
             timeoutFuture.cancel(false);
             timeoutFuture = null;
         }
-        channelToConnectionIds.clear();
+        //channelToConnectionIds.clear();
         connectionIdToChannel.clear();
         channelRecvComplete.clear();
     }
@@ -203,6 +203,7 @@ final class QuicheQuicChannelIoDispatcher {
     private long closeOrNextTimeout(QuicheQuicChannel quicChannel) {
         boolean closed = quicChannel.freeIfClosed();
         if (closed) {
+            remove(quicChannel);
             // If this is closed we also should have it removed from the mappings.
             assert !channelToConnectionIds.containsKey(quicChannel);
             return -1;
