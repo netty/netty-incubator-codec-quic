@@ -416,7 +416,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         QuicheQuicConnection conn = connection;
 
         unsafe().close(voidPromise());
-        // making sure that connection statistics is avaliable
+        // making sure that connection statistics is available
         // even after channel is closed
         statsAtClose = collectStats0(conn,  eventLoop().newPromise());
         try {
@@ -1053,9 +1053,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     private void runAll(Runnable task) {
+        QuicheQuicConnection quicConnection = connection;
         do {
             task.run();
-        } while ((task = connection.sslTask()) != null);
+        } while (quicConnection != null && (task = quicConnection.sslTask()) != null);
     }
 
     private Runnable decorateTaskSend(Runnable task) {
