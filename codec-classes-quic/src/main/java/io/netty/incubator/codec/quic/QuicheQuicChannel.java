@@ -57,16 +57,13 @@ import java.nio.channels.AlreadyConnectedException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ConnectionPendingException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
@@ -91,6 +88,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         OK
     }
 
+    private enum ChannelState {
+        CLOSED,
+        OPEN,
+        ACTIVE
+    }
+
     private static final class CloseData implements ChannelFutureListener {
         final boolean applicationClose;
         final int err;
@@ -112,7 +115,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         @Override
         public void operationComplete(ChannelFuture channelFuture) {
             if (connectionSend()) {
-                flushParent();
+                flushIoHandler();
             }
         }
     };
@@ -123,25 +126,23 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     private final LongObjectMap<QuicheQuicStreamChannel> streams = new LongObjectHashMap<>();
     private final QuicheQuicChannelConfig config;
-    private final boolean server;
     private final QuicStreamIdGenerator idGenerator;
     private final ChannelHandler streamHandler;
     private final Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray;
     private final Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray;
-    private final TimeoutHandler timeoutHandler;
+    private final QuicConnectionIdGenerator connectionIdGenerator;
+    private final QuicResetTokenGenerator resetTokenGenerator;
+    private final QuicheQuicChannelIoDispatcher channelsIoHandler;
     private Executor sslTaskExecutor;
-
     private boolean inFireChannelReadCompleteQueue;
     private boolean fireChannelReadCompletePending;
     private ByteBuf finBuffer;
     private ChannelPromise connectPromise;
     private ScheduledFuture<?> connectTimeoutFuture;
     private QuicConnectionAddress connectAddress;
-    private final Set<ByteBuffer> sourceConnectionIds = new HashSet<>();
     private CloseData closeData;
     private QuicConnectionCloseEvent connectionCloseEvent;
     private QuicConnectionStats statsAtClose;
-
     private InetSocketAddress local;
     private InetSocketAddress remote;
     private boolean supportsDatagram;
@@ -159,10 +160,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private static final int IN_HANDLE_WRITABLE_STREAMS = 1 << 3;
     private static final int IN_FORCE_CLOSE = 1 << 4;
 
-    private static final int CLOSED = 0;
-    private static final int OPEN = 1;
-    private static final int ACTIVE = 2;
-    private volatile int state;
+    private volatile ChannelState state = ChannelState.OPEN;
     private volatile boolean timedOut;
     private volatile String traceId;
     private volatile QuicheQuicConnection connection;
@@ -175,21 +173,20 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             AtomicLongFieldUpdater.newUpdater(QuicheQuicChannel.class, "bidiStreamsLeft");
     private volatile long bidiStreamsLeft;
 
-    private QuicheQuicChannel(Channel parent, boolean server, ByteBuffer key, InetSocketAddress local,
+    private QuicheQuicChannel(Channel parent, InetSocketAddress local,
                               InetSocketAddress remote, boolean supportsDatagram, ChannelHandler streamHandler,
                               Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
                               Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray,
-                              Consumer<QuicheQuicChannel> timeoutTask,
-                              Executor sslTaskExecutor) {
+                              QuicheQuicChannelIoDispatcher channelsIoHandler,
+                              Executor sslTaskExecutor,
+                              QuicConnectionIdGenerator connectionIdGenerator,
+                              QuicResetTokenGenerator resetTokenGenerator) {
         super(parent);
         config = new QuicheQuicChannelConfig(this);
-        this.server = server;
+        this.connectionIdGenerator = connectionIdGenerator;
+        this.resetTokenGenerator = resetTokenGenerator;
+        boolean server = connectionIdGenerator != null && resetTokenGenerator != null;
         this.idGenerator = new QuicStreamIdGenerator(server);
-        if (key != null) {
-            this.sourceConnectionIds.add(key);
-        }
-        state = OPEN;
-
         this.supportsDatagram = supportsDatagram;
         this.local = local;
         this.remote = remote;
@@ -197,7 +194,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         this.streamHandler = streamHandler;
         this.streamOptionsArray = streamOptionsArray;
         this.streamAttrsArray = streamAttrsArray;
-        timeoutHandler = new TimeoutHandler(timeoutTask);
+        this.channelsIoHandler = channelsIoHandler;
         this.sslTaskExecutor = sslTaskExecutor == null ? ImmediateExecutor.INSTANCE : sslTaskExecutor;
     }
 
@@ -205,19 +202,22 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                                        ChannelHandler streamHandler,
                                        Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
                                        Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray) {
-        return new QuicheQuicChannel(parent, false, null, local, remote, false, streamHandler,
-                streamOptionsArray, streamAttrsArray, null, null);
+        return new QuicheQuicChannel(parent, local, remote, false, streamHandler,
+                streamOptionsArray, streamAttrsArray, QuicheQuicChannelIoDispatcher.forChannel(parent),
+                null, null, null);
     }
 
-    static QuicheQuicChannel forServer(Channel parent, ByteBuffer key, InetSocketAddress local,
+    static QuicheQuicChannel forServer(Channel parent, InetSocketAddress local,
                                        InetSocketAddress remote,
                                        boolean supportsDatagram, ChannelHandler streamHandler,
                                        Map.Entry<ChannelOption<?>, Object>[] streamOptionsArray,
                                        Map.Entry<AttributeKey<?>, Object>[] streamAttrsArray,
-                                       Consumer<QuicheQuicChannel> timeoutTask, Executor sslTaskExecutor) {
-        return new QuicheQuicChannel(parent, true, key, local, remote, supportsDatagram,
-                streamHandler, streamOptionsArray, streamAttrsArray, timeoutTask,
-                sslTaskExecutor);
+                                       QuicheQuicChannelIoDispatcher channels, Executor sslTaskExecutor,
+                                       QuicConnectionIdGenerator connectionIdGenerator,
+                                       QuicResetTokenGenerator resetTokenGenerator) {
+        return new QuicheQuicChannel(parent, local, remote, supportsDatagram,
+                streamHandler, streamOptionsArray, streamAttrsArray, channels,
+                sslTaskExecutor, connectionIdGenerator, resetTokenGenerator);
     }
 
     private static final int MAX_ARRAY_LEN = 128;
@@ -315,13 +315,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         }
     }
 
-    private void connect(Function<QuicChannel, ? extends QuicSslEngine> engineProvider, Executor sslTaskExecutor,
-                         long configAddr, int localConnIdLength,
-                         boolean supportsDatagram, ByteBuffer fromSockaddrMemory, ByteBuffer toSockaddrMemory)
+    ByteBuffer connect(Function<QuicChannel, ? extends QuicSslEngine> engineProvider, Executor sslTaskExecutor,
+                       long configAddr, int localConnIdLength,
+                       boolean supportsDatagram, ByteBuffer fromSockaddrMemory, ByteBuffer toSockaddrMemory)
             throws Exception {
         assert this.connection == null;
         assert this.traceId == null;
-        assert this.sourceConnectionIds.isEmpty();
 
         this.sslTaskExecutor = sslTaskExecutor;
 
@@ -339,7 +338,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         if (!(engine instanceof QuicheQuicSslEngine)) {
             failConnectPromiseAndThrow(new IllegalArgumentException("QuicSslEngine is not of type "
                     + QuicheQuicSslEngine.class.getSimpleName()));
-            return;
+            return null;
         }
         if (!engine.getUseClientMode()) {
             failConnectPromiseAndThrow(new IllegalArgumentException("QuicSslEngine is not create in client mode"));
@@ -358,7 +357,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                             configAddr, ssl, false));
             if (connection == null) {
                 failConnectPromiseAndThrow(new ConnectException());
-                return;
+                return null;
             }
             attachQuicheConnection(connection);
             QuicClientSessionCache sessionCache = quicheEngine.ctx.getSessionCache();
@@ -370,7 +369,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 }
             }
             this.supportsDatagram = supportsDatagram;
-            sourceConnectionIds.add(connectId);
+            return connectId;
         } finally {
             idBuffer.release();
         }
@@ -391,24 +390,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         return false;
     }
 
-    Set<ByteBuffer> sourceConnectionIds() {
-        return sourceConnectionIds;
-    }
-
     private boolean closeAllIfConnectionClosed() {
         if (connection.isClosed()) {
             forceClose();
             return true;
         }
         return false;
-    }
-
-    boolean markInFireChannelReadCompleteQueue() {
-        if (inFireChannelReadCompleteQueue) {
-            return false;
-        }
-        inFireChannelReadCompleteQueue = true;
-        return true;
     }
 
     private void failPendingConnectPromise() {
@@ -434,7 +421,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         statsAtClose = collectStats0(conn,  eventLoop().newPromise());
         try {
             failPendingConnectPromise();
-            state = CLOSED;
+            state = ChannelState.CLOSED;
             timedOut = Quiche.quiche_conn_is_timed_out(conn.address());
 
             closeStreams();
@@ -443,13 +430,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 finBuffer.release();
                 finBuffer = null;
             }
-            state = CLOSED;
-
-            timeoutHandler.cancel();
         } finally {
-            flushParent();
+            flushIoHandler();
             connection = null;
             conn.free();
+            // Remove from the handler registry
+            channelsIoHandler.remove(this);
         }
     }
 
@@ -563,7 +549,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     @Override
     protected void doClose() throws Exception {
-        state = CLOSED;
+        state = ChannelState.CLOSED;
 
         final boolean app;
         final int err;
@@ -593,7 +579,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         written |= connectionSend();
         if (written) {
             // As this is the close let us flush it asap.
-            forceFlushParent();
+            forceFlushIoHandler();
         }
     }
 
@@ -673,7 +659,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                         // If this returned DONE we couldn't write anymore. This happens if the internal queue
                         // is full. In this case we should call quiche_conn_send(...) and so make space again.
                         if (connectionSend()) {
-                            forceFlushParent();
+                            forceFlushIoHandler();
                         }
                         // Let's try again to write the message.
                         retry = true;
@@ -682,7 +668,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             }
         } finally {
             if (sendSomething && connectionSend()) {
-                flushParent();
+                flushIoHandler();
             }
         }
     }
@@ -699,12 +685,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
     @Override
     public boolean isOpen() {
-        return state >= OPEN;
+        return state != ChannelState.CLOSED;
     }
 
     @Override
     public boolean isActive() {
-        return state == ACTIVE;
+        return state == ChannelState.ACTIVE;
     }
 
     @Override
@@ -716,17 +702,19 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
      * This may call {@link #flush()} on the parent channel if needed. The flush may delayed until the read loop
      * is over.
      */
-    private void flushParent() {
+    private void flushIoHandler() {
         if (!inFireChannelReadCompleteQueue) {
-            forceFlushParent();
+            forceFlushIoHandler();
         }
     }
 
     /**
      * Call @link #flush()} on the parent channel.
      */
-    private void forceFlushParent() {
-        parent().flush();
+    private void forceFlushIoHandler() {
+        if (channelsIoHandler != null) {
+            channelsIoHandler.flushAll();
+        }
     }
 
     private long connectionAddressChecked() throws ClosedChannelException {
@@ -762,7 +750,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     boolean isStreamLocalCreated(long streamId) {
-        return (streamId & 0x1) == (server ? 1 : 0);
+        return (streamId & 0x1) == (idGenerator.isServer() ? 1 : 0);
     }
 
     QuicStreamType streamType(long streamId) {
@@ -791,7 +779,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send
         if (connectionSend()) {
             // Force the flush so the shutdown can be seen asap.
-            forceFlushParent();
+            forceFlushIoHandler();
         }
         Quiche.notifyPromise(res, promise);
     }
@@ -806,7 +794,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             //
             // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send
             if (connectionSend()) {
-                flushParent();
+                flushIoHandler();
             }
         }
     }
@@ -842,7 +830,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             return;
         }
         if (connectionSend()) {
-            flushParent();
+            flushIoHandler();
         }
     }
 
@@ -874,47 +862,35 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     /**
      * Receive some data on a QUIC connection.
      */
-    void recv(InetSocketAddress sender, InetSocketAddress recipient, ByteBuf buffer) {
+    boolean recv(InetSocketAddress sender, InetSocketAddress recipient, ByteBuf buffer) {
+        boolean complete = inFireChannelReadCompleteQueue;
+        inFireChannelReadCompleteQueue = true;
         ((QuicChannelUnsafe) unsafe()).connectionRecv(sender, recipient, buffer);
+        return !complete;
     }
 
-    /**
-     * Return all source connection ids that are retired and so should be removed to map to the channel.
-     *
-     * @return retired ids.
-     */
-    List<ByteBuffer> retiredSourceConnectionId() {
+    void processRetiredSourceConnectionId(BiConsumer<QuicheQuicChannel, ByteBuffer> consumer) {
         QuicheQuicConnection connection = this.connection;
         if (connection == null || connection.isClosed()) {
-            return Collections.emptyList();
+            return;
         }
         long connAddr = connection.address();
         assert connAddr != -1;
-        List<ByteBuffer> retiredSourceIds = null;
         for (;;) {
             byte[] retired = Quiche.quiche_conn_retired_scid_next(connAddr);
             if (retired == null) {
                 break;
             }
-            if (retiredSourceIds == null) {
-                retiredSourceIds = new ArrayList<>();
-            }
             ByteBuffer retiredId = ByteBuffer.wrap(retired);
-            retiredSourceIds.add(retiredId);
-            sourceConnectionIds.remove(retiredId);
+            consumer.accept(this, retiredId);
         }
-        if (retiredSourceIds == null) {
-            return Collections.emptyList();
-        }
-        return retiredSourceIds;
     }
 
-    List<ByteBuffer> newSourceConnectionIds(
-            QuicConnectionIdGenerator connectionIdGenerator, QuicResetTokenGenerator resetTokenGenerator) {
-        if (server) {
+    void processNewSourceConnectionIds(BiConsumer<QuicheQuicChannel, ByteBuffer> consumer) {
+        if (connectionIdGenerator != null && resetTokenGenerator != null) {
             QuicheQuicConnection connection = this.connection;
             if (connection == null || connection.isClosed()) {
-                return Collections.emptyList();
+                return;
             }
             long connAddr = connection.address();
             // Generate all extra source ids that we can provide. This will cause frames that need to be send. Which
@@ -923,9 +899,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             if (left > 0) {
                 QuicConnectionAddress sourceAddr = connection.sourceId();
                 if (sourceAddr == null) {
-                    return Collections.emptyList();
+                    return;
                 }
-                List<ByteBuffer> generatedIds = new ArrayList<>(left);
                 boolean sendAndFlush = false;
                 ByteBuffer key = sourceAddr.connId.duplicate();
                 ByteBuf connIdBuffer = alloc().directBuffer(key.remaining());
@@ -945,8 +920,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                             break;
                         }
                         sendAndFlush = true;
-                        generatedIds.add(srcId);
-                        sourceConnectionIds.add(srcId);
+                        consumer.accept(this, srcId);
                     } while (--left > 0);
                 } finally {
                     connIdBuffer.release();
@@ -955,10 +929,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 if (sendAndFlush) {
                     connectionSendAndFlush();
                 }
-                return generatedIds;
             }
         }
-        return Collections.emptyList();
     }
 
     void writable() {
@@ -968,7 +940,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
         if (written) {
             // The writability changed so lets flush as fast as possible.
-            forceFlushParent();
+            forceFlushIoHandler();
         }
     }
 
@@ -1039,7 +1011,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         try {
             if (isConnDestroyed()) {
                 // Ensure we flush all pending writes.
-                forceFlushParent();
+                forceFlushIoHandler();
                 return;
             }
             fireChannelReadCompleteIfNeeded();
@@ -1049,7 +1021,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             connectionSend();
 
             // We are done with the read loop, flush all pending writes now.
-            forceFlushParent();
+            forceFlushIoHandler();
         } finally {
             inFireChannelReadCompleteQueue = false;
         }
@@ -1097,7 +1069,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 eventLoop().execute(() -> {
                     // Call connection send to continue handshake if needed.
                     if (connectionSend()) {
-                        forceFlushParent();
+                        forceFlushIoHandler();
                     }
                 });
             }
@@ -1150,14 +1122,14 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                             break;
                         case 1:
                             // We can write a normal datagram packet.
-                            parent().write(new DatagramPacket(bufferList.get(0), sendToAddress));
+                            channelsIoHandler.write(this, new DatagramPacket(bufferList.get(0), sendToAddress));
                             packetWasWritten = true;
                             break;
                         default:
                             int segmentSize = segmentSize(bufferList);
                             ByteBuf compositeBuffer = Unpooled.wrappedBuffer(bufferList.toArray(new ByteBuf[0]));
                             // We had more than one buffer, create a segmented packet.
-                            parent().write(segmentedDatagramPacketAllocator.newPacket(
+                            channelsIoHandler.write(this, segmentedDatagramPacketAllocator.newPacket(
                                     compositeBuffer, segmentSize, sendToAddress));
                             packetWasWritten = true;
                             break;
@@ -1210,7 +1182,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                         // write the previous filled out buffer as otherwise we would either leak or need
                         // to drop it and so produce some loss.
                         if (out.isReadable()) {
-                            parent().write(new DatagramPacket(out, sendToAddress));
+                            channelsIoHandler.write(this, new DatagramPacket(out, sendToAddress));
                         } else {
                             out.release();
                         }
@@ -1293,7 +1265,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     private boolean writePacket(DatagramPacket packet, int maxDatagramSize, int len) {
-        ChannelFuture future = parent().write(packet);
+        ChannelFuture future = channelsIoHandler.write(this, packet);
         if (isSendWindowUsed(maxDatagramSize, len)) {
             // Nothing left in the window, continue later
             future.addListener(continueSendingListener);
@@ -1364,8 +1336,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 notifyEarlyDataReadyIfNeeded();
             }
 
-            if (packetWasWritten) {
-                timeoutHandler.scheduleTimeout();
+            if (channelsIoHandler != null) {
+                channelsIoHandler.scheduleTimeoutIfNeeded(nextTimeout());
             }
             return packetWasWritten;
         } finally {
@@ -1406,7 +1378,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         @Override
         public void connect(SocketAddress remote, SocketAddress local, ChannelPromise channelPromise) {
             assert eventLoop().inEventLoop();
-            if (server) {
+            if (idGenerator.isServer()) {
                 channelPromise.setFailure(new UnsupportedOperationException());
                 return;
             }
@@ -1417,7 +1389,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             }
 
             if (remote instanceof QuicConnectionAddress) {
-                if (!sourceConnectionIds.isEmpty()) {
+                if (connection != null) {
                     // If a key is assigned we know this channel was already connected.
                     channelPromise.setFailure(new AlreadyConnectedException());
                     return;
@@ -1450,7 +1422,14 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                     }
                 });
 
-                parent().connect(new QuicheQuicChannelAddress(QuicheQuicChannel.this));
+                channelsIoHandler.connect(QuicheQuicChannel.this,
+                                new QuicheQuicChannelAddress(QuicheQuicChannel.this))
+                        .addListener(f -> {
+                            ChannelPromise promise = connectPromise;
+                            if (!f.isSuccess() && promise != null) {
+                                promise.tryFailure(f.cause());
+                            }
+                        });
                 return;
             }
 
@@ -1492,8 +1471,6 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
                 ByteBuffer recvInfo = connection.nextRecvInfo();
                 QuicheRecvInfo.setRecvInfo(recvInfo, sender, recipient);
-
-                SocketAddress oldRemote = remote;
 
                 if (connection.isRecvInfoChanged()) {
                     // Update the cached address
@@ -1586,7 +1563,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
                 if (handleWritableStreams()) {
                     // Some data was produced, let's flush.
-                    flushParent();
+                    flushIoHandler();
                 }
 
                 datagramReadable = true;
@@ -1660,7 +1637,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
                             // Call connection send to continue handshake if needed.
                             if (connectionSend()) {
-                                forceFlushParent();
+                                forceFlushIoHandler();
                             }
                         }
                     });
@@ -1786,10 +1763,10 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
 
         private boolean handlePendingChannelActive() {
             long connAddr = connection.address();
-            if (server) {
-                if (state == OPEN && Quiche.quiche_conn_is_established(connAddr)) {
+            if (idGenerator.isServer()) {
+                if (state == ChannelState.OPEN && Quiche.quiche_conn_is_established(connAddr)) {
                     // We didn't notify before about channelActive... Update state and fire the event.
-                    state = ACTIVE;
+                    state = ChannelState.ACTIVE;
 
                     pipeline().fireChannelActive();
                     notifyAboutHandshakeCompletionIfNeeded(null);
@@ -1798,7 +1775,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             } else if (connectPromise != null && Quiche.quiche_conn_is_established(connAddr)) {
                 ChannelPromise promise = connectPromise;
                 connectPromise = null;
-                state = ACTIVE;
+                state = ChannelState.ACTIVE;
 
                 boolean promiseSet = promise.trySuccess();
                 pipeline().fireChannelActive();
@@ -1836,115 +1813,37 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
      * Finish the connect of a client channel.
      */
     void finishConnect() {
-        assert !server;
+        assert !idGenerator.isServer();
         if (connectionSend()) {
-            flushParent();
+            flushIoHandler();
         }
     }
 
     private void notifyEarlyDataReadyIfNeeded() {
-        if (!server && !earlyDataReadyNotified &&
+        if (!idGenerator.isServer() && !earlyDataReadyNotified &&
                 !isConnDestroyed() && Quiche.quiche_conn_is_in_early_data(connection.address())) {
             earlyDataReadyNotified = true;
             pipeline().fireUserEventTriggered(SslEarlyDataReadyEvent.INSTANCE);
         }
     }
 
-    // TODO: Come up with something better.
-    static QuicheQuicChannel handleConnect(Function<QuicChannel, ? extends QuicSslEngine> sslEngineProvider,
-                                           Executor sslTaskExecutor,
-                                           SocketAddress address, long config, int localConnIdLength,
-                                           boolean supportsDatagram, ByteBuffer fromSockaddrMemory,
-                                           ByteBuffer toSockaddrMemory) throws Exception {
-        if (address instanceof QuicheQuicChannel.QuicheQuicChannelAddress) {
-            QuicheQuicChannel.QuicheQuicChannelAddress addr = (QuicheQuicChannel.QuicheQuicChannelAddress) address;
-            QuicheQuicChannel channel = addr.channel;
-            channel.connect(sslEngineProvider, sslTaskExecutor, config, localConnIdLength, supportsDatagram,
-                    fromSockaddrMemory, toSockaddrMemory);
-            return channel;
-        }
-        return null;
+    long nextTimeout() {
+        return isConnDestroyed() ? Long.MAX_VALUE : Quiche.quiche_conn_timeout_as_nanos(connection.address());
     }
 
-    /**
-     * Just a container to pass the {@link QuicheQuicChannel} to {@link QuicheQuicClientCodec}.
-     */
-    private static final class QuicheQuicChannelAddress extends SocketAddress {
+    void onTimeout() {
+        if (!isConnDestroyed()) {
+            long connAddr = connection.address();
+            // Notify quiche there was a timeout.
+            Quiche.quiche_conn_on_timeout(connAddr);
 
-        final QuicheQuicChannel channel;
-
-        QuicheQuicChannelAddress(QuicheQuicChannel channel) {
-            this.channel = channel;
-        }
-    }
-
-    private final class TimeoutHandler implements Runnable {
-        private ScheduledFuture<?> timeoutFuture;
-        private final Consumer<QuicheQuicChannel> timeoutTask;
-
-        TimeoutHandler(Consumer<QuicheQuicChannel> timeoutTask) {
-            this.timeoutTask = timeoutTask;
-        }
-
-        @Override
-        public void run() {
-            if (!isConnDestroyed()) {
-                long connAddr = connection.address();
-                timeoutFuture = null;
-                // Notify quiche there was a timeout.
-                Quiche.quiche_conn_on_timeout(connAddr);
-
-                if (Quiche.quiche_conn_is_closed(connAddr)) {
-                    forceClose();
-                    if (timeoutTask != null){
-                        timeoutTask.accept(QuicheQuicChannel.this);
-                    }
-                } else {
-                    // We need to call connectionSend when a timeout was triggered.
-                    // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send.
-                    boolean send = connectionSend();
-                    if (send) {
-                        flushParent();
-                    }
-                    if (!closeAllIfConnectionClosed()) {
-                        // The connection is alive, reschedule.
-                        scheduleTimeout();
-                    }
+            if (!Quiche.quiche_conn_is_closed(connAddr)) {
+                // We need to call connectionSend when a timeout was triggered.
+                // See https://docs.rs/quiche/0.6.0/quiche/struct.Connection.html#method.send.
+                boolean send = connectionSend();
+                if (send) {
+                    flushIoHandler();
                 }
-            }
-        }
-
-        // Schedule timeout.
-        // See https://docs.rs/quiche/0.6.0/quiche/#generating-outgoing-packets
-        void scheduleTimeout() {
-            if (isConnDestroyed()) {
-                cancel();
-                return;
-            }
-            long nanos = Quiche.quiche_conn_timeout_as_nanos(connection.address());
-            if (timeoutFuture == null) {
-                timeoutFuture = eventLoop().schedule(this,
-                        nanos, TimeUnit.NANOSECONDS);
-            } else {
-                long remaining = timeoutFuture.getDelay(TimeUnit.NANOSECONDS);
-                if (remaining <= 0) {
-                    // This means the timer already elapsed. In this case just cancel the future and call run()
-                    // directly. This will ensure we correctly call quiche_conn_on_timeout() etc.
-                    cancel();
-                    run();
-                } else if (remaining > nanos) {
-                    // The new timeout is smaller then what was scheduled before. Let's cancel the old timeout
-                    // and schedule a new one.
-                    cancel();
-                    timeoutFuture = eventLoop().schedule(this, nanos, TimeUnit.NANOSECONDS);
-                }
-            }
-        }
-
-        void cancel() {
-            if (timeoutFuture != null) {
-                timeoutFuture.cancel(false);
-                timeoutFuture = null;
             }
         }
     }

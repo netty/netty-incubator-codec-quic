@@ -48,28 +48,32 @@ final class QuicheQuicClientCodec extends QuicheQuicCodec {
             QuicPacketType type, int version, ByteBuf scid, ByteBuf dcid,
             ByteBuf token) {
         ByteBuffer key = dcid.internalNioBuffer(dcid.readerIndex(), dcid.readableBytes());
-        return getChannel(key);
+        return channelsIoHandler.get(key);
     }
 
     @Override
     public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress,
                         SocketAddress localAddress, ChannelPromise promise) {
-        final QuicheQuicChannel channel;
-        try {
-            channel = QuicheQuicChannel.handleConnect(sslEngineProvider, sslTaskExecutor, remoteAddress, config.nativeAddress(),
-                    localConnIdLength, config.isDatagramSupported(),
-                    senderSockaddrMemory.internalNioBuffer(0, senderSockaddrMemory.capacity()),
-                    recipientSockaddrMemory.internalNioBuffer(0, recipientSockaddrMemory.capacity()));
-        } catch (Exception e) {
-            promise.setFailure(e);
-            return;
-        }
-        if (channel != null) {
-            addChannel(channel);
-
-            channel.finishConnect();
-            promise.setSuccess();
-            return;
+        if (remoteAddress instanceof QuicheQuicChannelAddress) {
+            QuicheQuicChannelAddress addr = (QuicheQuicChannelAddress) remoteAddress;
+            QuicheQuicChannel channel = addr.channel;
+            try {
+                ByteBuffer id = channel.connect(sslEngineProvider, sslTaskExecutor,
+                        config.nativeAddress(), localConnIdLength, config.isDatagramSupported(),
+                        senderSockaddrMemory.internalNioBuffer(0, senderSockaddrMemory.capacity()),
+                        recipientSockaddrMemory.internalNioBuffer(0, recipientSockaddrMemory.capacity()));
+                if (id != null) {
+                    channelsIoHandler.add(channel, id);
+                    channel.finishConnect();
+                    promise.setSuccess();
+                    return;
+                } else {
+                    channel.forceClose();
+                }
+            } catch (Throwable e) {
+                promise.setFailure(e);
+                return;
+            }
         }
         ctx.connect(remoteAddress, localAddress, promise);
     }

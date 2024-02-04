@@ -100,27 +100,14 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
     }
 
     @Override
-    protected void channelRecv(QuicheQuicChannel channel, InetSocketAddress sender,
-                               InetSocketAddress recipient, ByteBuf buffer) {
-        super.channelRecv(channel, sender, recipient, buffer);
-        for (ByteBuffer retiredSourceConnectionId : channel.retiredSourceConnectionId()) {
-            removeMapping(retiredSourceConnectionId);
-        }
-        for (ByteBuffer newSourceConnectionId :
-                channel.newSourceConnectionIds(connectionIdAddressGenerator, resetTokenGenerator)) {
-            addMapping(newSourceConnectionId, channel);
-        }
-    }
-
-    @Override
     protected QuicheQuicChannel quicPacketRead(ChannelHandlerContext ctx, InetSocketAddress sender,
                                                InetSocketAddress recipient, QuicPacketType type, int version,
                                                ByteBuf scid, ByteBuf dcid, ByteBuf token) throws Exception {
         ByteBuffer dcidByteBuffer = dcid.internalNioBuffer(dcid.readerIndex(), dcid.readableBytes());
-        QuicheQuicChannel channel = getChannel(dcidByteBuffer);
+        QuicheQuicChannel channel = channelsIoHandler.get(dcidByteBuffer);
         if (channel == null && type == QuicPacketType.ZERO_RTT && connectionIdAddressGenerator.isIdempotent()) {
             // 0 rtt packet should obtain the server generated dcid
-            channel = getChannel(connectionIdAddressGenerator.newId(dcidByteBuffer, localConnIdLength));
+            channel = channelsIoHandler.get(connectionIdAddressGenerator.newId(dcidByteBuffer, localConnIdLength));
         }
         if (channel == null) {
             return handleServer(ctx, sender, recipient, type, version, scid, dcid, token);
@@ -210,7 +197,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
             ocidAddr = -1;
             ocidLen = -1;
 
-            QuicheQuicChannel existingChannel = getChannel(key);
+            QuicheQuicChannel existingChannel = channelsIoHandler.get(key);
             if (existingChannel != null) {
                 return existingChannel;
             }
@@ -225,8 +212,9 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
             key = ByteBuffer.wrap(bytes);
         }
         QuicheQuicChannel channel = QuicheQuicChannel.forServer(
-                ctx.channel(), key, recipient, sender, config.isDatagramSupported(),
-                streamHandler, streamOptionsArray, streamAttrsArray, this::removeChannel, sslTaskExecutor);
+                ctx.channel(), recipient, sender, config.isDatagramSupported(),
+                streamHandler, streamOptionsArray, streamAttrsArray, channelsIoHandler, sslTaskExecutor,
+                connectionIdAddressGenerator, resetTokenGenerator);
 
         Quic.setupChannel(channel, optionsArray, attrsArray, handler, LOGGER);
         QuicSslEngine engine = sslEngineProvider.apply(channel);
@@ -260,7 +248,7 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
 
         channel.attachQuicheConnection(connection);
 
-        addChannel(channel);
+        channelsIoHandler.add(channel, key);
 
         ctx.channel().eventLoop().register(channel);
         return channel;

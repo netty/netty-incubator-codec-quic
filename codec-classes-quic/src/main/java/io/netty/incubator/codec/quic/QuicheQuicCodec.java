@@ -25,15 +25,6 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
 
 import static io.netty.incubator.codec.quic.Quiche.allocateNativeOrder;
 
@@ -43,12 +34,8 @@ import static io.netty.incubator.codec.quic.Quiche.allocateNativeOrder;
 abstract class QuicheQuicCodec extends ChannelDuplexHandler {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(QuicheQuicCodec.class);
 
-    private final Map<ByteBuffer, QuicheQuicChannel> connectionIdToChannel = new HashMap<>();
-    private final Set<QuicheQuicChannel> channels = new HashSet<>();
-    private final Queue<QuicheQuicChannel> needsFireChannelReadComplete = new ArrayDeque<>();
     private final int maxTokenLength;
     private final FlushStrategy flushStrategy;
-
     private MessageSizeEstimator.Handle estimatorHandle;
     private QuicHeaderParser headerParser;
     private QuicHeaderParser.QuicHeaderProcessor parserCallback;
@@ -58,6 +45,8 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
 
     protected final QuicheConfig config;
     protected final int localConnIdLength;
+    protected QuicheQuicChannelIoDispatcher channelsIoHandler;
+
     // This buffer is used to copy InetSocketAddress to sockaddr_storage and so pass it down the JNI layer.
     protected ByteBuf senderSockaddrMemory;
     protected ByteBuf recipientSockaddrMemory;
@@ -69,34 +58,6 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
         this.flushStrategy = flushStrategy;
     }
 
-    protected final QuicheQuicChannel getChannel(ByteBuffer key) {
-        return connectionIdToChannel.get(key);
-    }
-
-    protected final void addMapping(ByteBuffer key, QuicheQuicChannel channel) {
-        connectionIdToChannel.put(key, channel);
-    }
-
-    protected final void removeMapping(ByteBuffer key) {
-        connectionIdToChannel.remove(key);
-    }
-
-    protected final void removeChannel(QuicheQuicChannel channel) {
-        boolean removed = channels.remove(channel);
-        assert removed;
-        for (ByteBuffer id : channel.sourceConnectionIds()) {
-            connectionIdToChannel.remove(id);
-        }
-    }
-
-    protected final void addChannel(QuicheQuicChannel channel) {
-        boolean added = channels.add(channel);
-        assert added;
-        for (ByteBuffer id : channel.sourceConnectionIds()) {
-            connectionIdToChannel.put(id, channel);
-        }
-    }
-
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
         senderSockaddrMemory = allocateNativeOrder(Quiche.SIZEOF_SOCKADDR_STORAGE);
@@ -104,20 +65,13 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
         headerParser = new QuicHeaderParser(maxTokenLength, localConnIdLength);
         parserCallback = new QuicCodecHeaderProcessor(ctx);
         estimatorHandle = ctx.channel().config().getMessageSizeEstimator().newHandle();
+        channelsIoHandler = new QuicheQuicChannelIoDispatcher(ctx.channel());
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
         try {
-            // Use a copy of the array as closing the channel may cause an unwritable event that could also
-            // remove channels.
-            for (QuicheQuicChannel ch : channels.toArray(new QuicheQuicChannel[0])) {
-                ch.forceClose();
-            }
-            channels.clear();
-            connectionIdToChannel.clear();
-
-            needsFireChannelReadComplete.clear();
+            channelsIoHandler.closeAll();
             if (pendingPackets > 0) {
                 flushNow(ctx);
             }
@@ -190,16 +144,7 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
     public final void channelReadComplete(ChannelHandlerContext ctx) {
         inChannelReadComplete = true;
         try {
-            for (;;) {
-                QuicheQuicChannel channel = needsFireChannelReadComplete.poll();
-                if (channel == null) {
-                    break;
-                }
-                channel.recvComplete();
-                if (channel.freeIfClosed()) {
-                    removeChannel(channel);
-                }
-            }
+            channelsIoHandler.recvCompleteAll();
         } finally {
             inChannelReadComplete = false;
             if (pendingPackets > 0) {
@@ -211,22 +156,7 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
     @Override
     public final void channelWritabilityChanged(ChannelHandlerContext ctx) {
         if (ctx.channel().isWritable()) {
-            List<QuicheQuicChannel> closed = null;
-            for (QuicheQuicChannel channel : channels) {
-                // TODO: Be a bit smarter about this.
-                channel.writable();
-                if (channel.freeIfClosed()) {
-                    if (closed == null) {
-                        closed = new ArrayList<>();
-                    }
-                    closed.add(channel);
-                }
-            }
-            if (closed != null) {
-                for (QuicheQuicChannel ch: closed) {
-                    removeChannel(ch);
-                }
-            }
+            channelsIoHandler.writableAll();
         } else {
             // As we batch flushes we need to ensure we at least try to flush a batch once the channel becomes
             // unwritable. Otherwise we may end up with buffering too much writes and so waste memory.
@@ -290,26 +220,8 @@ abstract class QuicheQuicCodec extends ChannelDuplexHandler {
                     type, version, scid,
                     dcid, token);
             if (channel != null) {
-                channelRecv(channel, sender, recipient, buffer);
+                channelsIoHandler.recv(channel, sender, recipient, buffer);
             }
         }
-    }
-
-    /**
-     * Called once something was received for a {@link QuicheQuicChannel}.
-     *
-     * @param channel   the channel for which the data was received
-     * @param sender    the sender
-     * @param recipient the recipient
-     * @param buffer    the acutal data.
-     */
-    protected void channelRecv(QuicheQuicChannel channel, InetSocketAddress sender,
-                               InetSocketAddress recipient, ByteBuf buffer) {
-        // Add to queue first, we might be able to safe some flushes and consolidate them
-        // in channelReadComplete(...) this way.
-        if (channel.markInFireChannelReadCompleteQueue()) {
-            needsFireChannelReadComplete.add(channel);
-        }
-        channel.recv(sender, recipient, buffer);
     }
 }

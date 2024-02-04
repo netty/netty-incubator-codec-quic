@@ -19,13 +19,19 @@ package io.netty.incubator.codec.quic;
  * Generates and hands over the next stream id to use for a QUIC stream.
  */
 final class QuicStreamIdGenerator {
+    private final boolean server;
     private long nextBidirectionalStreamId;
     private long nextUnidirectionalStreamId;
 
     QuicStreamIdGenerator(boolean server) {
+        this.server = server;
         // See https://quicwg.org/base-drafts/rfc9000.html#name-stream-types-and-identifier
         nextBidirectionalStreamId = server ? 1 : 0;
         nextUnidirectionalStreamId = server ? 3 : 2;
+    }
+
+    boolean isServer() {
+        return server;
     }
 
     long nextStreamId(boolean bidirectional) {
