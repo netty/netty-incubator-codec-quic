@@ -2051,6 +2051,33 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     }
 
     @Override
+    public Future<QuicConnectionPathStats> collectPathStats(int pathIdx, Promise<QuicConnectionPathStats> promise) {
+        if (eventLoop().inEventLoop()) {
+            collectPathStats0(pathIdx, promise);
+        } else {
+            eventLoop().execute(() -> collectPathStats0(pathIdx, promise));
+        }
+        return promise;
+    }
+
+    private void collectPathStats0(int pathIdx, Promise<QuicConnectionPathStats> promise) {
+        collectPathStats0(connection, pathIdx, promise);
+    }
+
+    private QuicConnectionPathStats collectPathStats0(QuicheQuicConnection connection, int pathIdx, Promise<QuicConnectionPathStats> promise) {
+        final Object[] stats = Quiche.quiche_conn_path_stats(connection.address(), pathIdx);
+        if (stats == null) {
+            promise.setFailure(new IllegalStateException("native quiche_conn_path_stats(...) failed"));
+            return null;
+        }
+
+        final QuicheQuicConnectionPathStats connStats =
+                new QuicheQuicConnectionPathStats(stats);
+        promise.setSuccess(connStats);
+        return connStats;
+    }
+
+    @Override
     public QuicTransportParameters peerTransportParameters() {
         return connection.peerParameters();
     }
