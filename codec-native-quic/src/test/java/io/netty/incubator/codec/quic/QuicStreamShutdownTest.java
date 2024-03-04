@@ -22,9 +22,11 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.socket.ChannelOutputShutdownException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
@@ -42,19 +44,31 @@ public class QuicStreamShutdownTest extends AbstractQuicTest {
             server = QuicTestUtils.newServer(executor, new ChannelInboundHandlerAdapter(), new ChannelInboundHandlerAdapter() {
                 @Override
                 public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                    ChannelFutureListener futureListener = new ChannelFutureListener() {
+                    ByteBuf buffer = (ByteBuf) msg;
+                    ctx.write(buffer.retainedDuplicate()).addListener(new ChannelFutureListener() {
                         @Override
                         public void operationComplete(ChannelFuture channelFuture) {
                             Throwable cause = channelFuture.cause();
-                            if (cause instanceof QuicException &&
-                                    ((QuicException) cause).error() == QuicError.STREAM_STOPPED) {
+                            if (cause instanceof ChannelOutputShutdownException
+                                    && cause.getCause() instanceof QuicException) {
+                                QuicException e = (QuicException) cause.getCause();
+                                if (e.error() == QuicError.STREAM_STOPPED) {
+                                    latch.countDown();
+                                }
+                            }
+                        }
+                    });
+                    ctx.writeAndFlush(buffer).addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture channelFuture) {
+                            Throwable cause = channelFuture.cause();
+                            // As the first write did return a STREAM_STOPPED error the Channel
+                            // should be closed already.
+                            if (cause instanceof ClosedChannelException) {
                                 latch.countDown();
                             }
                         }
-                    };
-                    ByteBuf buffer = (ByteBuf) msg;
-                    ctx.write(buffer.retainedDuplicate()).addListener(futureListener);
-                    ctx.writeAndFlush(buffer).addListener(futureListener);
+                    });
                 }
             });
             channel = QuicTestUtils.newClient(executor);
