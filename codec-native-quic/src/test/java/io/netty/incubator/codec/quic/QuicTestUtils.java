@@ -163,6 +163,11 @@ final class QuicTestUtils {
                 .localAddress(new InetSocketAddress(NetUtil.LOCALHOST4, 0));
     }
 
+    static Bootstrap newServerBootstrap() {
+        return newBootstrap()
+                .localAddress(new InetSocketAddress(NetUtil.LOCALHOST4, 0));
+    }
+
     static Channel newServer(QuicServerCodecBuilder serverBuilder, QuicTokenHandler tokenHandler,
                              ChannelHandler handler, ChannelHandler streamHandler)
             throws Exception {
@@ -187,4 +192,11 @@ final class QuicTestUtils {
         }
     }
 
+    @Nullable
+    static ChannelOption<Boolean> soReusePortOption() {
+        if (GROUP instanceof EpollEventLoopGroup) {
+            return EpollChannelOption.SO_REUSEPORT;
+        }
+        return null;
+    }
 }
