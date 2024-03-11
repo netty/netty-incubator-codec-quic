@@ -38,7 +38,6 @@ import io.netty.incubator.codec.quic.QuicStreamChannel;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-import org.jetbrains.annotations.NotNull;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -66,8 +65,8 @@ public final class QuicServerSoReusePortExample {
                     // Use QuicCodecDispatcher as we use SO_REUSEPORT and bind multiple times to the same port.
                     .handler(new QuicCodecDispatcher() {
                         @Override
-                        protected void initChannel(@NotNull Channel channel, int localConnectionIdLength,
-                                                   @NotNull QuicConnectionIdGenerator idGenerator) {
+                        protected void initChannel(Channel channel, int localConnectionIdLength,
+                                                   QuicConnectionIdGenerator idGenerator) {
                             ChannelHandler codec = new QuicServerCodecBuilder()
                                     .localConnectionIdLength(localConnectionIdLength)
                                     .connectionIdAddressGenerator(idGenerator)
