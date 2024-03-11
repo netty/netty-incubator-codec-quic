@@ -23,11 +23,13 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOption;
 import io.netty.util.ReferenceCountUtil;
-import org.junit.jupiter.api.condition.EnabledIf;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -35,57 +37,79 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class QuicPortReuseTest extends AbstractQuicTest {
 
-    static boolean doesSupportSoReusePort() {
-        return QuicTestUtils.soReusePortOption() != null;
-    }
-
     @ParameterizedTest
     @MethodSource("newSslTaskExecutors")
-    @EnabledIf(value = "doesSupportSoReusePort")
-    public void testConnectAndStreamPriority(Executor executor) throws Throwable {
+    @Timeout(100)
+    public void testReusePort(Executor executor) throws Throwable {
         int numBytes = 1000;
         final AtomicInteger byteCounter = new AtomicInteger();
 
-        int numBinds = 4;
+        ChannelOption<Boolean> reusePort = QuicTestUtils.soReusePortOption();
+        int numBinds = reusePort == null ? 1 : 4;
         int numConnects = 16;
 
-        List<Channel> channels = new ArrayList<>();
-        Bootstrap serverBootstrap = QuicTestUtils.newServerBootstrap();
-        serverBootstrap.option(QuicTestUtils.soReusePortOption(), true).handler(new QuicCodecDispatcher() {
-            @Override
-            protected void initChannel(Channel channel, int localConnectionIdLength,
-                                       QuicConnectionIdGenerator idGenerator) {
-                ChannelHandler codec = QuicTestUtils.newQuicServerBuilder(executor)
-                        .localConnectionIdLength(localConnectionIdLength)
-                        .connectionIdAddressGenerator(idGenerator).streamHandler(new ChannelInboundHandlerAdapter() {
-                            @Override
-                            public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                                byteCounter.addAndGet(((ByteBuf) msg).readableBytes());
-                                ReferenceCountUtil.release(msg);
-                            }
-                        }).build();
-                channel.pipeline().addLast(codec);
-            }
-        });
+        List<Channel> serverChannels = new ArrayList<>();
+        Bootstrap serverBootstrap = QuicTestUtils.newServerBootstrap()
+                .handler(new QuicCodecDispatcher() {
+                    @Override
+                    protected void initChannel(Channel channel, int localConnectionIdLength,
+                                               QuicConnectionIdGenerator idGenerator) {
+                        ChannelHandler codec = QuicTestUtils.newQuicServerBuilder(executor)
+                                .localConnectionIdLength(localConnectionIdLength)
+                                .connectionIdAddressGenerator(idGenerator)
+                                .tokenHandler(InsecureQuicTokenHandler.INSTANCE)
+                                .handler(QuicTestUtils.NOOP_HANDLER)
+                                .streamHandler(new ChannelInboundHandlerAdapter() {
 
+                                    @Override
+                                    public boolean isSharable() {
+                                        return true;
+                                    }
+
+                                    @Override
+                                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                                        byteCounter.addAndGet(((ByteBuf) msg).readableBytes());
+                                        ReferenceCountUtil.release(msg);
+                                    }
+                                }).build();
+                        channel.pipeline().addLast(codec);
+                    }
+                });
+
+        if (reusePort != null) {
+            serverBootstrap.option(reusePort, true);
+        }
+
+
+        SocketAddress bindAddress = null;
         for (int i = 0; i < numBinds; i++) {
-            channels.add(serverBootstrap.bind().sync().channel());
+            Channel bindChannel;
+            if (bindAddress == null) {
+                bindChannel = serverBootstrap.bind().sync().channel();
+            } else {
+                bindChannel = serverBootstrap.bind(bindAddress).sync().channel();
+            }
+            serverChannels.add(bindChannel);
+            if (bindAddress == null) {
+                bindAddress = bindChannel.localAddress();
+            }
         }
 
         Channel channel = QuicTestUtils.newClient(executor);
+        QuicChannelBootstrap cb = QuicTestUtils.newQuicChannelBootstrap(channel)
+                .handler(QuicTestUtils.NOOP_HANDLER)
+                .streamHandler(QuicTestUtils.NOOP_HANDLER)
+                .remoteAddress(bindAddress);
+        List<QuicChannel> channels = new ArrayList<>();
+
         try {
-            List<QuicChannel> clients = new ArrayList<>();
             for (int i = 0; i < numConnects; i++) {
-                QuicChannel quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
-                        .handler(new ChannelInboundHandlerAdapter())
-                        .streamHandler(new ChannelInboundHandlerAdapter())
-                        .remoteAddress(channels.get(0).localAddress())
+                channels.add(cb
                         .connect()
-                        .get();
-                clients.add(quicChannel);
+                        .get());
             }
 
-            for (QuicChannel quicChannel: clients) {
+            for (QuicChannel quicChannel: channels) {
                 quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
                         new ChannelInboundHandlerAdapter() {
                             @Override
@@ -99,10 +123,10 @@ public class QuicPortReuseTest extends AbstractQuicTest {
             while (byteCounter.get() != numConnects * numBytes) {
                 Thread.sleep(100);
             }
-            for (QuicChannel quicChannel: clients) {
+            for (QuicChannel quicChannel: channels) {
                 quicChannel.close().sync();
             }
-            for (Channel serverChannel: channels) {
+            for (Channel serverChannel: serverChannels) {
                 serverChannel.close().sync();
             }
         } finally {

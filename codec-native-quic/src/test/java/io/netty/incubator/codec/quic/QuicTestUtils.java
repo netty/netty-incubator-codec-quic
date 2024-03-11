@@ -18,6 +18,8 @@ package io.netty.incubator.codec.quic;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerAdapter;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.FixedRecvByteBufAllocator;
@@ -57,6 +59,13 @@ final class QuicTestUtils {
 
     private static final EventLoopGroup GROUP = Epoll.isAvailable() ? new EpollEventLoopGroup() :
             new NioEventLoopGroup();
+
+    static final ChannelHandlerAdapter NOOP_HANDLER = new ChannelHandlerAdapter() {
+        @Override
+        public boolean isSharable() {
+            return true;
+        }
+    };
 
     static {
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -157,10 +166,8 @@ final class QuicTestUtils {
             serverBuilder.handler(handler);
         }
         ChannelHandler codec = serverBuilder.build();
-        return newBootstrap()
-                // We don't want any special handling of the channel so just use a dummy handler.
-                .handler(codec)
-                .localAddress(new InetSocketAddress(NetUtil.LOCALHOST4, 0));
+        return newServerBootstrap()
+                .handler(codec);
     }
 
     static Bootstrap newServerBootstrap() {
