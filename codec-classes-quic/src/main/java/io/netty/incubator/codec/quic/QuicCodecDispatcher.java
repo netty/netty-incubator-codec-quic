@@ -42,21 +42,39 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>
  * It is important that the same {@link QuicCodecDispatcher} instance is shared between all the {@link Channel}s that
  * are bound to the same {@link java.net.InetSocketAddress} and use {@code SO_REUSEPORT}.
+ * <p>
+ * An alternative way to handle this would be to do the "routing" to the correct socket in an {@code epbf} program
+ * by implementing your own {@link QuicConnectionIdGenerator} that issue ids that can be understood and handled by the
+ * {@code epbf} program to route the packet to the correct socket.
+ *
  */
 public abstract class QuicCodecDispatcher extends ChannelInboundHandlerAdapter {
-    // Use a CopyOnWriteArrayList as modifications to the List should only happen during bootstrapping
+    // 20 is the max as per RFC.
+    // See https://datatracker.ietf.org/doc/html/rfc9000#section-17.2
+    private static final int MAX_LOCAL_CONNECTION_ID_LENGTH = 20;
+
+    // Use a CopyOnWriteArrayList as modifications to the List should only happen during bootstrapping and teardown
     // of the channels.
     private final List<ChannelHandlerContextDispatcher> contextList = new CopyOnWriteArrayList<>();
     private final int localConnectionIdLength;
 
+    /**
+     * Create a new instance using the default connection id length.
+     */
     protected QuicCodecDispatcher() {
-        // 20 is the max as per RFC.
-        this(20);
+        this(MAX_LOCAL_CONNECTION_ID_LENGTH);
     }
 
+    /**
+     * Create a new instance
+     *
+     * @param localConnectionIdLength   the local connection id length. This must be between 10 and 20.
+     */
     protected QuicCodecDispatcher(int localConnectionIdLength) {
-        this.localConnectionIdLength = ObjectUtil.checkInRange(localConnectionIdLength, 0, 20,
-                "localConnectionIdLength");
+        // Let's use 10 as a minimum to ensure we still have some bytes left for randomness as we already use
+        // 2 of the bytes to encode the index.
+        this.localConnectionIdLength = ObjectUtil.checkInRange(localConnectionIdLength,
+                10, MAX_LOCAL_CONNECTION_ID_LENGTH, "localConnectionIdLength");
     }
 
     @Override
@@ -118,6 +136,8 @@ public abstract class QuicCodecDispatcher extends ChannelInboundHandlerAdapter {
     @Override
     public final void channelReadComplete(ChannelHandlerContext ctx) {
         // Loop over all ChannelHandlerContextDispatchers and ensure fireChannelReadComplete() is called if required.
+        // We use and old style for loop as CopyOnWriteArrayList implements RandomAccess and so we can
+        // reduce the object creations.
         for (int i = 0; i < contextList.size(); i++) {
             ChannelHandlerContextDispatcher ctxDispatcher = contextList.get(i);
             if (ctxDispatcher != null) {
@@ -129,8 +149,8 @@ public abstract class QuicCodecDispatcher extends ChannelInboundHandlerAdapter {
 
     /**
      * Init the {@link Channel} and add all the needed {@link io.netty.channel.ChannelHandler} to the pipeline.
-     * This also included building the {@code QUIC} codec using the given local connectionId length and
-     * {@link QuicConnectionIdGenerator}.
+     * This also included building the {@code QUIC} codec via {@link QuicCodecBuilder} sub-type using the given local
+     * connection id length and {@link QuicConnectionIdGenerator}.
      *
      * @param channel                   the {@link Channel} to init.
      * @param localConnectionIdLength   the local connection id length that must be used with the
@@ -226,6 +246,7 @@ public abstract class QuicCodecDispatcher extends ChannelInboundHandlerAdapter {
 
     // Package-private for testing
     static ByteBuffer encodeIdx(ByteBuffer buffer, int idx) {
+        // Allocate a new buffer and prepend it with the index.
         ByteBuffer b = ByteBuffer.allocate(buffer.capacity() + Short.BYTES);
         // We encode it as unsigned short.
         b.putShort((short) idx).put(buffer).flip();

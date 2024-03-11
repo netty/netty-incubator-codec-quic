@@ -35,7 +35,7 @@ public class QuicCodecDispatcherTest {
 
     @Test
     public void testPacketsAreDispatchedToCorrectChannel() {
-        short localConnectionIdLength = 8;
+        short localConnectionIdLength = 16;
 
         AtomicInteger initChannelCalled = new AtomicInteger();
         QuicCodecDispatcher dispatcher = new QuicCodecDispatcher(localConnectionIdLength) {
