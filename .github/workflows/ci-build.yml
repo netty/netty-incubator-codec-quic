@@ -225,9 +225,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: build-android-jars
+          name: build-android-jars-aars
           path: |
             **/target/*.jar
+            **/target/*.aar
 
       - uses: actions/upload-artifact@v4
         if: ${{ failure() }}
