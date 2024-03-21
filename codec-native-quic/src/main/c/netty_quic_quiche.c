@@ -721,7 +721,10 @@ static jobject netty_new_socket_address(JNIEnv* env, const struct sockaddr_stora
 
 static jobjectArray netty_quiche_conn_path_stats(JNIEnv* env, jclass clazz, jlong conn, jlong idx) {
     quiche_path_stats stats = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    quiche_conn_path_stats((quiche_conn *) conn, idx, &stats);
+    if (quiche_conn_path_stats((quiche_conn *) conn, idx, &stats) != 0) {
+        // The idx is not valid. 
+        return NULL;
+    }
 
     jobject localAddr = netty_new_socket_address(env, &stats.local_addr);
     if (localAddr == NULL) {
