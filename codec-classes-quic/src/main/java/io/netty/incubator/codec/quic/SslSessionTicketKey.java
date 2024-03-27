@@ -16,6 +16,8 @@
 
 package io.netty.incubator.codec.quic;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Arrays;
 
 /**
@@ -50,7 +52,7 @@ public final class SslSessionTicketKey {
      * @param hmacKey the HMAC key of the session ticket key
      * @param aesKey the AES key of the session ticket key
      */
-    public SslSessionTicketKey(byte[] name, byte[] hmacKey, byte[] aesKey) {
+    public SslSessionTicketKey(byte @Nullable [] name, byte @Nullable [] hmacKey, byte @Nullable [] aesKey) {
         if (name == null || name.length != NAME_SIZE) {
             throw new IllegalArgumentException("Length of name must be " + NAME_SIZE);
         }

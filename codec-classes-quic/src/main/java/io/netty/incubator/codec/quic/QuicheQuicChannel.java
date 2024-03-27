@@ -2049,6 +2049,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         collectStats0(connection, promise);
     }
 
+    @Nullable
     private QuicConnectionStats collectStats0(QuicheQuicConnection connection, Promise<QuicConnectionStats> promise) {
         final long[] stats = Quiche.quiche_conn_stats(connection.address());
         if (stats == null) {
@@ -2083,6 +2084,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         collectPathStats0(conn, pathIdx, promise);
     }
 
+    @Nullable
     private QuicConnectionPathStats collectPathStats0(QuicheQuicConnection connection, int pathIdx, Promise<QuicConnectionPathStats> promise) {
         final Object[] stats = Quiche.quiche_conn_path_stats(connection.address(), pathIdx);
         if (stats == null) {
