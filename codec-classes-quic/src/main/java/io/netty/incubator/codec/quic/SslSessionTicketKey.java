@@ -52,7 +52,7 @@ public final class SslSessionTicketKey {
      * @param hmacKey the HMAC key of the session ticket key
      * @param aesKey the AES key of the session ticket key
      */
-    public SslSessionTicketKey(byte @Nullable [] name, byte @Nullable [] hmacKey, byte @Nullable [] aesKey) {
+    public SslSessionTicketKey(byte[] name, byte[] hmacKey, byte[] aesKey) {
         if (name == null || name.length != NAME_SIZE) {
             throw new IllegalArgumentException("Length of name must be " + NAME_SIZE);
         }
