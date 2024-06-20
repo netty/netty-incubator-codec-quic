@@ -1010,7 +1010,6 @@ static void netty_quiche_config_set_initial_congestion_window_packets(JNIEnv* en
     quiche_config_set_initial_congestion_window_packets((quiche_config*) config, (size_t) value);
 }
 
-
 static void netty_quiche_config_enable_hystart(JNIEnv* env, jclass clazz, jlong config, jboolean value) {
     quiche_config_enable_hystart((quiche_config*) config, value == JNI_TRUE ? true : false);
 }
