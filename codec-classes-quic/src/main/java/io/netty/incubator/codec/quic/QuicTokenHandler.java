@@ -51,4 +51,9 @@ public interface QuicTokenHandler {
      * @return the maximal supported token length.
      */
     int maxTokenLength();
+
+    /** @return Maximum possible length of the {@code dcid} buffer passed to {@link #writeToken} method */
+    static int maxConnectionIdLength() {
+        return Quiche.QUICHE_MAX_CONN_ID_LEN;
+    }
 }
