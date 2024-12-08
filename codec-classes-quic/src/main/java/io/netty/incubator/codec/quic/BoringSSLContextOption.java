@@ -34,4 +34,12 @@ public final class BoringSSLContextOption<T> extends SslContextOption<T> {
      *     SSL_CTX_set1_groups_list</a>.
      */
     public static final BoringSSLContextOption<String[]> GROUPS = new BoringSSLContextOption<>("GROUPS");
+
+    /**
+     * Set the signature algorithms that should be used.
+     * <p>
+     * See <a href="https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L5166">
+     *     SSL_CTX_set1_sigalgs</a>.
+     */
+    public static final BoringSSLContextOption<String[]> SIGNATURE_ALGORITHMS = new BoringSSLContextOption<>("SIGNATURE_ALGORITHMS");
 }

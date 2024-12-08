@@ -66,7 +66,7 @@ final class BoringSSLCertificateCallback {
     static final String KEY_TYPE_EC_RSA = "EC_RSA";
 
     // key type mappings for types.
-    private static final Map<String, String> KEY_TYPES = new HashMap<String, String>();
+    private static Map<String, String> KEY_TYPES = new HashMap<String, String>();
     static {
         KEY_TYPES.put("RSA", KEY_TYPE_RSA);
         KEY_TYPES.put("DHE_RSA", KEY_TYPE_RSA);
@@ -77,12 +77,12 @@ final class BoringSSLCertificateCallback {
         KEY_TYPES.put("DH_RSA", KEY_TYPE_DH_RSA);
     }
 
-    private static final Set<String> SUPPORTED_KEY_TYPES = Collections.unmodifiableSet(new LinkedHashSet<>(
+    private static final Set<String> SUPPORTED_KEY_TYPES = new LinkedHashSet<>(
             Arrays.asList(KEY_TYPE_RSA,
                     KEY_TYPE_DH_RSA,
                     KEY_TYPE_EC,
                     KEY_TYPE_EC_RSA,
-                    KEY_TYPE_EC_EC)));
+                    KEY_TYPE_EC_EC));
 
     // Directly returning this is safe as we never modify it within our JNI code.
     private static final long[] NO_KEY_MATERIAL_CLIENT_SIDE =  new long[] { 0, 0 };
