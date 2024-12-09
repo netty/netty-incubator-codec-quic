@@ -37,7 +37,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-final class BoringSSLCertificateCallback {
+final public class BoringSSLCertificateCallback {
     private static final byte[] BEGIN_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n".getBytes(CharsetUtil.US_ASCII);
     private static final byte[] END_PRIVATE_KEY = "\n-----END PRIVATE KEY-----\n".getBytes(CharsetUtil.US_ASCII);
 
@@ -66,7 +66,7 @@ final class BoringSSLCertificateCallback {
     static final String KEY_TYPE_EC_RSA = "EC_RSA";
 
     // key type mappings for types.
-    private static Map<String, String> KEY_TYPES = new HashMap<String, String>();
+    public static Map<String, String> KEY_TYPES = new HashMap<String, String>();
     static {
         KEY_TYPES.put("RSA", KEY_TYPE_RSA);
         KEY_TYPES.put("DHE_RSA", KEY_TYPE_RSA);
@@ -77,7 +77,7 @@ final class BoringSSLCertificateCallback {
         KEY_TYPES.put("DH_RSA", KEY_TYPE_DH_RSA);
     }
 
-    private static final Set<String> SUPPORTED_KEY_TYPES = new LinkedHashSet<>(
+    public static final Set<String> SUPPORTED_KEY_TYPES = new LinkedHashSet<>(
             Arrays.asList(KEY_TYPE_RSA,
                     KEY_TYPE_DH_RSA,
                     KEY_TYPE_EC,
