@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.quic;
 
 
+import io.netty.handler.ssl.SslContextOption;
 import io.netty.util.CharsetUtil;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,7 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-final public class BoringSSLCertificateCallback {
+final class BoringSSLCertificateCallback {
     private static final byte[] BEGIN_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n".getBytes(CharsetUtil.US_ASCII);
     private static final byte[] END_PRIVATE_KEY = "\n-----END PRIVATE KEY-----\n".getBytes(CharsetUtil.US_ASCII);
 
@@ -66,7 +67,7 @@ final public class BoringSSLCertificateCallback {
     static final String KEY_TYPE_EC_RSA = "EC_RSA";
 
     // key type mappings for types.
-    public static Map<String, String> KEY_TYPES = new HashMap<String, String>();
+    private static final Map<String, String> KEY_TYPES = new HashMap<String, String>();
     static {
         KEY_TYPES.put("RSA", KEY_TYPE_RSA);
         KEY_TYPES.put("DHE_RSA", KEY_TYPE_RSA);
@@ -77,12 +78,12 @@ final public class BoringSSLCertificateCallback {
         KEY_TYPES.put("DH_RSA", KEY_TYPE_DH_RSA);
     }
 
-    public static final Set<String> SUPPORTED_KEY_TYPES = new LinkedHashSet<>(
+    private static final Set<String> SUPPORTED_KEY_TYPES = Collections.unmodifiableSet(new LinkedHashSet<>(
             Arrays.asList(KEY_TYPE_RSA,
                     KEY_TYPE_DH_RSA,
                     KEY_TYPE_EC,
                     KEY_TYPE_EC_RSA,
-                    KEY_TYPE_EC_EC));
+                    KEY_TYPE_EC_EC)));
 
     // Directly returning this is safe as we never modify it within our JNI code.
     private static final long[] NO_KEY_MATERIAL_CLIENT_SIDE =  new long[] { 0, 0 };
@@ -90,11 +91,22 @@ final public class BoringSSLCertificateCallback {
     private final QuicheQuicSslEngineMap engineMap;
     private final X509ExtendedKeyManager keyManager;
     private final String password;
+    private Map<String, String> serverKeyTypeOverride;
+    private Set<String> clientKeyTypeOverride;
 
-    BoringSSLCertificateCallback(QuicheQuicSslEngineMap engineMap, @Nullable X509ExtendedKeyManager keyManager, String password) {
+    BoringSSLCertificateCallback(QuicheQuicSslEngineMap engineMap, @Nullable X509ExtendedKeyManager keyManager, String password, Map.Entry<SslContextOption<?>, Object>[] ctxOptions) {
         this.engineMap = engineMap;
         this.keyManager = keyManager;
         this.password = password;
+
+        for (Map.Entry<SslContextOption<?>, Object> ctxOpt : ctxOptions) {
+            SslContextOption<?> option = ctxOpt.getKey();
+            if (option == BoringSSLContextOption.CLIENT_KEY_TYPES && ctxOpt.getValue() instanceof Set) {
+                this.clientKeyTypeOverride = (Set<String>) ctxOpt.getValue();
+            } else if (option == BoringSSLContextOption.SERVER_KEY_TYPES && ctxOpt.getValue() instanceof Map) {
+                this.serverKeyTypeOverride = (Map<String, String>) ctxOpt.getValue();
+            }
+        }
     }
 
     @SuppressWarnings("unused")
@@ -151,12 +163,17 @@ final public class BoringSSLCertificateCallback {
             throw new SSLHandshakeException("Unable to find key material");
         }
 
+        Map<String, String> keyTypes = KEY_TYPES;
+        if(serverKeyTypeOverride != null) {
+            keyTypes = serverKeyTypeOverride;
+        }
+
         // authMethods may contain duplicates or may result in the same type
         // but call chooseServerAlias(...) may be expensive. So let's ensure
         // we filter out duplicates.
-        Set<String> typeSet = new HashSet<String>(KEY_TYPES.size());
+        Set<String> typeSet = new HashSet<String>(keyTypes.size());
         for (String authMethod : authMethods) {
-            String type = KEY_TYPES.get(authMethod);
+            String type = keyTypes.get(authMethod);
             if (type != null && typeSet.add(type)) {
                 String alias = chooseServerAlias(engine, type);
                 if (alias != null) {
@@ -243,8 +260,11 @@ final public class BoringSSLCertificateCallback {
      * @return supported key types that can be used in {@code X509KeyManager.chooseClientAlias} and
      *         {@code X509ExtendedKeyManager.chooseEngineClientAlias}.
      */
-    private static Set<String> supportedClientKeyTypes(byte @Nullable[] clientCertificateTypes) {
+    private Set<String> supportedClientKeyTypes(byte @Nullable[] clientCertificateTypes) {
         if (clientCertificateTypes == null) {
+            if(clientKeyTypeOverride != null) {
+                return clientKeyTypeOverride;
+            }
             // Try all of the supported key types.
             return SUPPORTED_KEY_TYPES;
         }

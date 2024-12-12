@@ -222,7 +222,7 @@ final class QuicheQuicSslContext extends QuicSslContext {
         int verifyMode = server ? boringSSLVerifyModeForServer(this.clientAuth) : BoringSSL.SSL_VERIFY_PEER;
         nativeSslContext = new NativeSslContext(BoringSSL.SSLContext_new(server, applicationProtocols,
                 new BoringSSLHandshakeCompleteCallback(engineMap),
-                new BoringSSLCertificateCallback(engineMap, keyManager, password),
+                new BoringSSLCertificateCallback(engineMap, keyManager, password, ctxOptions),
                 new BoringSSLCertificateVerifyCallback(engineMap, trustManager),
                 mapping == null ? null : new BoringSSLTlsextServernameCallback(engineMap, mapping),
                 keylog == null ? null : new BoringSSLKeylogCallback(engineMap, keylog),
