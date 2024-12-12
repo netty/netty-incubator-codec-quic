@@ -103,9 +103,6 @@ final class BoringSSL {
     }
 
     static int SSLContext_set1_sigalgs_list(long ctx, String... sigalgs) {
-        if (sigalgs == null) {
-            throw new NullPointerException("signature algorithms");
-        }
         if (sigalgs.length == 0) {
             throw new IllegalArgumentException();
         }
