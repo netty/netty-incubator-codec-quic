@@ -207,7 +207,9 @@ final class QuicheQuicServerCodec extends QuicheQuicCodec {
         if (noToken) {
             connIdBuffer.clear();
             key = connectionIdAddressGenerator.newId(
-                    dcid.internalNioBuffer(dcid.readerIndex(), dcid.readableBytes()), localConnIdLength);
+                    scid.internalNioBuffer(scid.readerIndex(), scid.readableBytes()),
+                    dcid.internalNioBuffer(dcid.readerIndex(), dcid.readableBytes()),
+                    localConnIdLength);
             connIdBuffer.writeBytes(key.duplicate());
             scidAddr = Quiche.readerMemoryAddress(connIdBuffer);
             scidLen = localConnIdLength;
