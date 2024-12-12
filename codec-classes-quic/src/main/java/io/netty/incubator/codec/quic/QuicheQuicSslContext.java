@@ -187,6 +187,9 @@ final class QuicheQuicSslContext extends QuicSslContext {
         }
         String[] groups = NAMED_GROUPS;
         String[] sigalgs = EmptyArrays.EMPTY_STRINGS;
+        Map<String, String> serverKeyTypes = null;
+        Set<String> clientKeyTypes = null;
+
         if (ctxOptions != null) {
             for (Map.Entry<SslContextOption<?>, Object> ctxOpt : ctxOptions) {
                 SslContextOption<?> option = ctxOpt.getKey();
@@ -205,6 +208,10 @@ final class QuicheQuicSslContext extends QuicSslContext {
                         sigalgsSet.add(sigalg);
                     }
                     sigalgs = sigalgsSet.toArray(EmptyArrays.EMPTY_STRINGS);
+                } else if (option == BoringSSLContextOption.CLIENT_KEY_TYPES) {
+                    clientKeyTypes = (Set<String>) ctxOpt.getValue();
+                } else if (option == BoringSSLContextOption.SERVER_KEY_TYPES) {
+                    serverKeyTypes = (Map<String, String>) ctxOpt.getValue();
                 } else {
                     LOGGER.debug("Skipping unsupported " + SslContextOption.class.getSimpleName()
                             + ": " + ctxOpt.getKey());
@@ -222,7 +229,7 @@ final class QuicheQuicSslContext extends QuicSslContext {
         int verifyMode = server ? boringSSLVerifyModeForServer(this.clientAuth) : BoringSSL.SSL_VERIFY_PEER;
         nativeSslContext = new NativeSslContext(BoringSSL.SSLContext_new(server, applicationProtocols,
                 new BoringSSLHandshakeCompleteCallback(engineMap),
-                new BoringSSLCertificateCallback(engineMap, keyManager, password, ctxOptions),
+                new BoringSSLCertificateCallback(engineMap, keyManager, password, serverKeyTypes, clientKeyTypes),
                 new BoringSSLCertificateVerifyCallback(engineMap, trustManager),
                 mapping == null ? null : new BoringSSLTlsextServernameCallback(engineMap, mapping),
                 keylog == null ? null : new BoringSSLKeylogCallback(engineMap, keylog),
