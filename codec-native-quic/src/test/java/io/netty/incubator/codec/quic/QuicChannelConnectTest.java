@@ -864,7 +864,7 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     new ChannelInboundHandlerAdapter()).addListener(f -> {
                 assertFalse(f.isSuccess());
 
-            });
+            }).await();
             fail("Should not reach here");
         } catch(Exception e) {
             // This is expected as certificate/key is not specified type
