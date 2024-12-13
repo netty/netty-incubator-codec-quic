@@ -80,13 +80,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class QuicChannelConnectTest extends AbstractQuicTest {
 
@@ -799,6 +793,81 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
 
             });
             readLatch.await();
+        } finally {
+            server.close().sync();
+            channel.close().sync();
+            shutdown(executor);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("newSslTaskExecutors")
+    public void testKeyTypeChangeFail(Executor executor) throws Throwable {
+        Map<String, String> serverKeyTypes = new HashMap<>();
+        serverKeyTypes.put("ECDHE_ECDSA", "EdDSA");
+
+        Set<String> clientKeyTypes = new HashSet<>();
+        clientKeyTypes.add("EdDSA");
+
+        Channel server = QuicTestUtils.newServer(QuicTestUtils.newQuicServerBuilder(executor,
+                        QuicSslContextBuilder.forServer(
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.privateKey(), null,
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.certificate())
+                                .applicationProtocols(QuicTestUtils.PROTOS)
+                                .option(BoringSSLContextOption.SERVER_KEY_TYPES, serverKeyTypes)
+                                .earlyData(true)
+                                .build()),
+                TestQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public boolean isSharable() {
+                        return true;
+                    }
+                }, new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public boolean isSharable() {
+                        return true;
+                    }
+
+                    @Override
+                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                        ByteBuf buffer = (ByteBuf) msg;
+                        try {
+                            fail("Should not reach here");
+
+                            ctx.close();
+                            ctx.channel().parent().close();
+                        } finally {
+                            buffer.release();
+                        }
+                    }
+                });
+
+        InetSocketAddress address = (InetSocketAddress) server.localAddress();
+
+        QuicSslContext sslContext = QuicSslContextBuilder.forClient()
+                .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                .applicationProtocols(QuicTestUtils.PROTOS)
+                .option(BoringSSLContextOption.CLIENT_KEY_TYPES, clientKeyTypes)
+                .earlyData(true)
+                .build();
+
+        Channel channel = QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor, sslContext)
+                .sslEngineProvider(q -> sslContext.newEngine(q.alloc(), "localhost", 9999)));
+
+        try {
+            QuicChannel quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
+                    .streamHandler(new ChannelInboundHandlerAdapter())
+                    .remoteAddress(address)
+                    .connect()
+                    .get();
+            quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
+                    new ChannelInboundHandlerAdapter()).addListener(f -> {
+                assertFalse(f.isSuccess());
+
+            });
+            fail("Should not reach here");
+        } catch(Exception e) {
+            // This is expected as certificate/key is not specified type
         } finally {
             server.close().sync();
             channel.close().sync();
