@@ -69,8 +69,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -725,6 +724,84 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
             // Close the parent Datagram channel as well.
             channel.close().sync();
 
+            shutdown(executor);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("newSslTaskExecutors")
+    public void testKeyTypeChange(Executor executor) throws Throwable {
+        final CountDownLatch readLatch = new CountDownLatch(1);
+        Map<String, String> serverKeyTypes = new HashMap<>();
+        serverKeyTypes.put("RSA", "RSA");
+
+        Set<String> clientKeyTypes = new HashSet<>();
+        clientKeyTypes.add("RSA");
+
+        Channel server = QuicTestUtils.newServer(QuicTestUtils.newQuicServerBuilder(executor,
+                        QuicSslContextBuilder.forServer(
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.privateKey(), null,
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.certificate())
+                                .applicationProtocols(QuicTestUtils.PROTOS)
+                                .option(BoringSSLContextOption.SERVER_KEY_TYPES, serverKeyTypes)
+                                .earlyData(true)
+                                .build()),
+                TestQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public boolean isSharable() {
+                        return true;
+                    }
+                }, new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public boolean isSharable() {
+                        return true;
+                    }
+
+                    @Override
+                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                        ByteBuf buffer = (ByteBuf) msg;
+                        try {
+                            assertEquals(4, buffer.readableBytes());
+                            assertEquals(5, buffer.readInt());
+                            readLatch.countDown();
+
+                            ctx.close();
+                            ctx.channel().parent().close();
+                        } finally {
+                            buffer.release();
+                        }
+                    }
+                });
+
+        InetSocketAddress address = (InetSocketAddress) server.localAddress();
+
+        QuicSslContext sslContext = QuicSslContextBuilder.forClient()
+                .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                .applicationProtocols(QuicTestUtils.PROTOS)
+                .option(BoringSSLContextOption.CLIENT_KEY_TYPES, clientKeyTypes)
+                .earlyData(true)
+                .build();
+
+        Channel channel = QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor, sslContext)
+                .sslEngineProvider(q -> sslContext.newEngine(q.alloc(), "localhost", 9999)));
+
+        try {
+            QuicChannel quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
+                    .streamHandler(new ChannelInboundHandlerAdapter())
+                    .remoteAddress(address)
+                    .connect()
+                    .get();
+            quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
+                    new ChannelInboundHandlerAdapter()).addListener(f -> {
+                        assertTrue(f.isSuccess());
+                        Channel stream = (Channel) f.getNow();
+                        stream.writeAndFlush(stream.alloc().buffer().writeInt(5));
+
+            });
+            readLatch.await();
+        } finally {
+            server.close().sync();
+            channel.close().sync();
             shutdown(executor);
         }
     }
