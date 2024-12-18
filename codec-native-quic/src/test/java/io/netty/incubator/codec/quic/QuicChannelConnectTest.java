@@ -70,11 +70,7 @@ import java.security.cert.X509Certificate;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -760,7 +756,6 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                             readLatch.countDown();
 
                             ctx.close();
-                            ctx.channel().parent().close();
                         } finally {
                             buffer.release();
                         }
@@ -787,11 +782,12 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     .get();
             quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
                     new ChannelInboundHandlerAdapter()).addListener(f -> {
-                        assertTrue(f.isSuccess());
                         Channel stream = (Channel) f.getNow();
                         stream.writeAndFlush(stream.alloc().buffer().writeInt(5));
-
+            }).await().addListener(f -> {
+                assertTrue(f.isSuccess());
             });
+
             readLatch.await();
         } finally {
             server.close().sync();
@@ -817,30 +813,8 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                                 .option(BoringSSLContextOption.SERVER_KEY_TYPES, serverKeyTypes)
                                 .earlyData(true)
                                 .build()),
-                TestQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public boolean isSharable() {
-                        return true;
-                    }
-                }, new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public boolean isSharable() {
-                        return true;
-                    }
-
-                    @Override
-                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                        ByteBuf buffer = (ByteBuf) msg;
-                        try {
-                            fail("Should not reach here");
-
-                            ctx.close();
-                            ctx.channel().parent().close();
-                        } finally {
-                            buffer.release();
-                        }
-                    }
-                });
+                TestQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter(),
+                new ChannelInboundHandlerAdapter());
 
         InetSocketAddress address = (InetSocketAddress) server.localAddress();
 
@@ -855,19 +829,13 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                 .sslEngineProvider(q -> sslContext.newEngine(q.alloc(), "localhost", 9999)));
 
         try {
-            QuicChannel quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
-                    .streamHandler(new ChannelInboundHandlerAdapter())
-                    .remoteAddress(address)
-                    .connect()
-                    .get();
-            quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
-                    new ChannelInboundHandlerAdapter()).addListener(f -> {
-                assertFalse(f.isSuccess());
-
-            }).await();
-            fail("Should not reach here");
-        } catch(Exception e) {
-            // This is expected as certificate/key is not specified type
+            assertThrows(ExecutionException.class, ()->{
+                QuicTestUtils.newQuicChannelBootstrap(channel)
+                                .streamHandler(new ChannelInboundHandlerAdapter())
+                                .remoteAddress(address)
+                                .connect()
+                                .get();
+            });
         } finally {
             server.close().sync();
             channel.close().sync();
