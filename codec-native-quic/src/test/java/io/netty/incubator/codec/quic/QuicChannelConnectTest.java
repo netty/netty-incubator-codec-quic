@@ -69,25 +69,14 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class QuicChannelConnectTest extends AbstractQuicTest {
 
@@ -725,6 +714,131 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
             // Close the parent Datagram channel as well.
             channel.close().sync();
 
+            shutdown(executor);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("newSslTaskExecutors")
+    public void testKeyTypeChange(Executor executor) throws Throwable {
+        final CountDownLatch readLatch = new CountDownLatch(1);
+        Map<String, String> serverKeyTypes = new HashMap<>();
+        serverKeyTypes.put("RSA", "RSA");
+
+        Set<String> clientKeyTypes = new HashSet<>();
+        clientKeyTypes.add("RSA");
+
+        Channel server = QuicTestUtils.newServer(QuicTestUtils.newQuicServerBuilder(executor,
+                        QuicSslContextBuilder.forServer(
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.privateKey(), null,
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.certificate())
+                                .applicationProtocols(QuicTestUtils.PROTOS)
+                                .option(BoringSSLContextOption.SERVER_KEY_TYPES, serverKeyTypes)
+                                .earlyData(true)
+                                .build()),
+                TestQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public boolean isSharable() {
+                        return true;
+                    }
+                }, new ChannelInboundHandlerAdapter() {
+                    @Override
+                    public boolean isSharable() {
+                        return true;
+                    }
+
+                    @Override
+                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                        ByteBuf buffer = (ByteBuf) msg;
+                        try {
+                            assertEquals(4, buffer.readableBytes());
+                            assertEquals(5, buffer.readInt());
+                            readLatch.countDown();
+
+                            ctx.close();
+                        } finally {
+                            buffer.release();
+                        }
+                    }
+                });
+
+        InetSocketAddress address = (InetSocketAddress) server.localAddress();
+
+        QuicSslContext sslContext = QuicSslContextBuilder.forClient()
+                .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                .applicationProtocols(QuicTestUtils.PROTOS)
+                .option(BoringSSLContextOption.CLIENT_KEY_TYPES, clientKeyTypes)
+                .earlyData(true)
+                .build();
+
+        Channel channel = QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor, sslContext)
+                .sslEngineProvider(q -> sslContext.newEngine(q.alloc(), "localhost", 9999)));
+
+        try {
+            QuicChannel quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
+                    .streamHandler(new ChannelInboundHandlerAdapter())
+                    .remoteAddress(address)
+                    .connect()
+                    .get();
+            quicChannel.createStream(QuicStreamType.BIDIRECTIONAL,
+                    new ChannelInboundHandlerAdapter()).addListener(f -> {
+                        Channel stream = (Channel) f.getNow();
+                        stream.writeAndFlush(stream.alloc().buffer().writeInt(5));
+            }).await().addListener(f -> {
+                assertTrue(f.isSuccess());
+            });
+
+            readLatch.await();
+        } finally {
+            server.close().sync();
+            channel.close().sync();
+            shutdown(executor);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("newSslTaskExecutors")
+    public void testKeyTypeChangeFail(Executor executor) throws Throwable {
+        Map<String, String> serverKeyTypes = new HashMap<>();
+        serverKeyTypes.put("ECDHE_ECDSA", "EdDSA");
+
+        Set<String> clientKeyTypes = new HashSet<>();
+        clientKeyTypes.add("EdDSA");
+
+        Channel server = QuicTestUtils.newServer(QuicTestUtils.newQuicServerBuilder(executor,
+                        QuicSslContextBuilder.forServer(
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.privateKey(), null,
+                                        QuicTestUtils.SELF_SIGNED_CERTIFICATE.certificate())
+                                .applicationProtocols(QuicTestUtils.PROTOS)
+                                .option(BoringSSLContextOption.SERVER_KEY_TYPES, serverKeyTypes)
+                                .earlyData(true)
+                                .build()),
+                TestQuicTokenHandler.INSTANCE, new ChannelInboundHandlerAdapter(),
+                new ChannelInboundHandlerAdapter());
+
+        InetSocketAddress address = (InetSocketAddress) server.localAddress();
+
+        QuicSslContext sslContext = QuicSslContextBuilder.forClient()
+                .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                .applicationProtocols(QuicTestUtils.PROTOS)
+                .option(BoringSSLContextOption.CLIENT_KEY_TYPES, clientKeyTypes)
+                .earlyData(true)
+                .build();
+
+        Channel channel = QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor, sslContext)
+                .sslEngineProvider(q -> sslContext.newEngine(q.alloc(), "localhost", 9999)));
+
+        try {
+            assertThrows(ExecutionException.class, ()->{
+                QuicTestUtils.newQuicChannelBootstrap(channel)
+                                .streamHandler(new ChannelInboundHandlerAdapter())
+                                .remoteAddress(address)
+                                .connect()
+                                .get();
+            });
+        } finally {
+            server.close().sync();
+            channel.close().sync();
             shutdown(executor);
         }
     }
