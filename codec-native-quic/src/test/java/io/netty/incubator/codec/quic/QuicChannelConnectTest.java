@@ -27,6 +27,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.socket.ChannelInputShutdownEvent;
+import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -69,8 +70,18 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -741,24 +752,14 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
                     public boolean isSharable() {
                         return true;
                     }
-                }, new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public boolean isSharable() {
-                        return true;
-                    }
-
-                    @Override
-                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                        ByteBuf buffer = (ByteBuf) msg;
-                        try {
-                            assertEquals(4, buffer.readableBytes());
-                            assertEquals(5, buffer.readInt());
-                            readLatch.countDown();
-
-                            ctx.close();
-                        } finally {
-                            buffer.release();
+                }, new ByteToMessageDecoder() {
+                    protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
+                        if (msg.readableBytes() < 4) {
+                            return;
                         }
+                        assertEquals(5, msg.readInt());
+                        readLatch.countDown();
+                        ctx.close();
                     }
                 });
 
