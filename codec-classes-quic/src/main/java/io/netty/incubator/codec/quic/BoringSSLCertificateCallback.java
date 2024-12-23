@@ -16,7 +16,6 @@
 package io.netty.incubator.codec.quic;
 
 
-import io.netty.handler.ssl.SslContextOption;
 import io.netty.util.CharsetUtil;
 import org.jetbrains.annotations.Nullable;
 
