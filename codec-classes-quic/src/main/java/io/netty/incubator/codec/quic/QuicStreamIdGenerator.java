@@ -28,7 +28,7 @@ final class QuicStreamIdGenerator {
         nextUnidirectionalStreamId = server ? 3 : 2;
     }
 
-    long nextStreamId(boolean bidirectional) {
+    synchronized long nextStreamId(boolean bidirectional) {
         if (bidirectional) {
             long stream = nextBidirectionalStreamId;
             nextBidirectionalStreamId += 4;
