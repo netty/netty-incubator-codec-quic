@@ -295,6 +295,12 @@ final class Quiche {
      */
     static final int QUICHE_CC_BBR = QuicheNativeStaticallyReferencedJniMethods.quiche_cc_bbr();
 
+    /**
+     * See <a href="https://github.com/cloudflare/quiche/blob/0.19.0/quiche/include/quiche.h#L222">
+     *     QUICHE_CC_BBR2</a>.
+     */
+    static final int QUICHE_CC_BBR2 = QuicheNativeStaticallyReferencedJniMethods.quiche_cc_bbr2();
+
     static final int QUICHE_PATH_EVENT_NEW = QuicheNativeStaticallyReferencedJniMethods.quiche_path_event_new();
     static final int QUICHE_PATH_EVENT_VALIDATED = QuicheNativeStaticallyReferencedJniMethods.quiche_path_event_validated();
     static final int QUICHE_PATH_EVENT_FAILED_VALIDATION = QuicheNativeStaticallyReferencedJniMethods.quiche_path_event_failed_validation();

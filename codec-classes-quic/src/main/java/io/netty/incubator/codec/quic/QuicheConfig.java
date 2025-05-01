@@ -84,6 +84,9 @@ final class QuicheConfig {
                     case BBR:
                         Quiche.quiche_config_set_cc_algorithm(config, Quiche.QUICHE_CC_BBR);
                         break;
+                    case BBR2:
+                        Quiche.quiche_config_set_cc_algorithm(config, Quiche.QUICHE_CC_BBR2);
+                        break;
                     default:
                         throw new IllegalArgumentException(
                                 "Unknown congestionControlAlgorithm: " + congestionControlAlgorithm);

@@ -320,6 +320,10 @@ static jint netty_quiche_cc_bbr(JNIEnv* env, jclass clazz) {
     return QUICHE_CC_BBR;
 }
 
+static jint netty_quiche_cc_bbr2(JNIEnv* env, jclass clazz) {
+    return QUICHE_CC_BBR2;
+}
+
 static jint netty_quiche_path_event_type_new(JNIEnv* env, jclass clazz) {
     return QUICHE_PATH_EVENT_NEW;
 }
@@ -1151,6 +1155,7 @@ static const JNINativeMethod statically_referenced_fixed_method_table[] = {
   { "quiche_cc_reno", "()I", (void *) netty_quiche_cc_reno },
   { "quiche_cc_cubic", "()I", (void *) netty_quiche_cc_cubic },
   { "quiche_cc_bbr", "()I", (void *) netty_quiche_cc_bbr },
+  { "quiche_cc_bbr2", "()I", (void *) netty_quiche_cc_bbr2 },
   { "quiche_path_event_new", "()I", (void *) netty_quiche_path_event_type_new },
   { "quiche_path_event_validated", "()I", (void *) netty_quiche_path_event_type_validated },
   { "quiche_path_event_failed_validation", "()I", (void *) netty_quiche_path_event_type_failed_validation },

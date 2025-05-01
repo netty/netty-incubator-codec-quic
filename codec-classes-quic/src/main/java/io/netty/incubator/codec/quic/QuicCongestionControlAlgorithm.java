@@ -21,5 +21,6 @@ package io.netty.incubator.codec.quic;
 public enum QuicCongestionControlAlgorithm {
     RENO,
     CUBIC,
-    BBR
+    BBR,
+    BBR2
 }

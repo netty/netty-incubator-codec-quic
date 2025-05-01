@@ -45,6 +45,7 @@ final class QuicheNativeStaticallyReferencedJniMethods {
     static native int quiche_cc_reno();
     static native int quiche_cc_cubic();
     static native int quiche_cc_bbr();
+    static native int quiche_cc_bbr2();
 
     static native int quicheRecvInfoOffsetofFrom();
     static native int quicheRecvInfoOffsetofFromLen();
