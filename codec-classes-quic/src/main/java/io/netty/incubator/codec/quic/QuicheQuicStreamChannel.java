@@ -841,6 +841,9 @@ final class QuicheQuicStreamChannel extends DefaultAttributeMap implements QuicS
             if (msg instanceof ByteBuf) {
                 fin = false;
                 buffer = (ByteBuf) msg;
+            } else if (msg instanceof FinByteBuf) {
+                fin = true;
+                buffer = ((FinByteBuf) msg).getByteBuf();
             } else {
                 QuicStreamFrame frame = (QuicStreamFrame) msg;
                 fin = frame.hasFin();
