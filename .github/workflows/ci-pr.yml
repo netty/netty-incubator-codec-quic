@@ -255,8 +255,11 @@ jobs:
         with:
           crate: cargo-ndk
 
-      - name: Install Rust toolchain for Android architectures
-        run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+      - name: Install stable toolchain for the target
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v4
