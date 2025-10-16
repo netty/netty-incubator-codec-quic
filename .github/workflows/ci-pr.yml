@@ -215,7 +215,7 @@ jobs:
         run: brew bundle
 
       - name: Build project
-        run: ./mvnw -B -ntp --file pom.xml clean package -DskipTests=true
+        run: ./mvnw -B -ntp --file pom.xml clean package
 
       - name: Upload Test Results
         if: always()
