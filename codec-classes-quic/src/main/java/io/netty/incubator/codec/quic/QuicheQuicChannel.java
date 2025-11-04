@@ -145,7 +145,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
     private ByteBuf outErrorCodeBuffer;
     private ChannelPromise connectPromise;
     private ScheduledFuture<?> connectTimeoutFuture;
-    private QuicConnectionAddress connectAddress;
+    private QuicConnectionAddress connectLocalAddress;
+    private QuicConnectionAddress connectRemoteAddress;
     private CloseData closeData;
     private QuicConnectionCloseEvent connectionCloseEvent;
     private QuicConnectionStats statsAtClose;
@@ -336,17 +337,20 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
         this.sslTaskExecutor = sslTaskExecutor;
         this.freeTask = freeTask;
 
-        QuicConnectionAddress address = this.connectAddress;
+        QuicConnectionAddress connectLocalAddress = this.connectLocalAddress;
 
-        if (address == QuicConnectionAddress.EPHEMERAL) {
-            address = QuicConnectionAddress.random(localConnIdLength);
+        if (connectLocalAddress == QuicConnectionAddress.EPHEMERAL) {
+            connectLocalAddress = QuicConnectionAddress.random(localConnIdLength);
         }
-        ByteBuffer connectId = address.id();
-        if (connectId.remaining() != localConnIdLength) {
+
+        ByteBuffer localConnectId = connectLocalAddress.id();
+        if (localConnectId.remaining() != localConnIdLength) {
             failConnectPromiseAndThrow(new IllegalArgumentException("connectionAddress has length "
-                    + connectId.remaining()
+                    + localConnectId.remaining()
                     + " instead of " + localConnIdLength));
         }
+        QuicConnectionAddress connectRemoteAddress = this.connectRemoteAddress;
+
         QuicSslEngine engine = engineProvider.apply(this);
         if (!(engine instanceof QuicheQuicSslEngine)) {
             failConnectPromiseAndThrow(new IllegalArgumentException("QuicSslEngine is not of type "
@@ -357,16 +361,38 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
             failConnectPromiseAndThrow(new IllegalArgumentException("QuicSslEngine is not create in client mode"));
         }
         QuicheQuicSslEngine quicheEngine = (QuicheQuicSslEngine) engine;
-        ByteBuf idBuffer = alloc().directBuffer(connectId.remaining()).writeBytes(connectId.duplicate());
+        ByteBuf localIdBuffer = alloc().directBuffer(localConnectId.remaining()).writeBytes(localConnectId.duplicate());
+        ByteBuf remoteIdBuffer;
+        if (connectRemoteAddress != QuicConnectionAddress.EPHEMERAL) {
+            ByteBuffer remoteId = connectRemoteAddress.id();
+            remoteIdBuffer = alloc().directBuffer(remoteId.remaining()).writeBytes(remoteId.duplicate());
+        } else {
+            remoteIdBuffer = null;
+        }
+
         try {
-            int fromSockaddrLen = SockaddrIn.setAddress(fromSockaddrMemory, local);
+            int fromSockaddrLen
+                    = SockaddrIn.setAddress(fromSockaddrMemory, local);
             int toSockaddrLen = SockaddrIn.setAddress(toSockaddrMemory, remote);
-            QuicheQuicConnection connection = quicheEngine.createConnection(ssl ->
-                    Quiche.quiche_conn_new_with_tls(Quiche.readerMemoryAddress(idBuffer),
-                            idBuffer.readableBytes(), -1, -1,
-                            Quiche.memoryAddressWithPosition(fromSockaddrMemory), fromSockaddrLen,
-                            Quiche.memoryAddressWithPosition(toSockaddrMemory), toSockaddrLen,
-                            configAddr, ssl, false));
+            QuicheQuicConnection connection = quicheEngine.createConnection(ssl -> {
+                long localIdMemoryAddress = Quiche.readerMemoryAddress(localIdBuffer);
+                int localIdLength = localIdBuffer.readableBytes();
+
+                final long remoteIdMemoryAddress;
+                final int remoteIdLength;
+                if (remoteIdBuffer == null) {
+                    remoteIdMemoryAddress = -1;
+                    remoteIdLength = -1;
+                } else {
+                    remoteIdMemoryAddress = Quiche.readerMemoryAddress(remoteIdBuffer);
+                    remoteIdLength = remoteIdBuffer.readableBytes();
+                }
+                return Quiche.quiche_conn_new_with_tls(localIdMemoryAddress, localIdLength,
+                        remoteIdMemoryAddress, remoteIdLength,
+                        Quiche.memoryAddressWithPosition(fromSockaddrMemory), fromSockaddrLen,
+                        Quiche.memoryAddressWithPosition(toSockaddrMemory), toSockaddrLen,
+                        configAddr, ssl, false);
+            });
             if (connection == null) {
                 failConnectPromiseAndThrow(new ConnectException());
                 return;
@@ -381,9 +407,12 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 }
             }
             this.supportsDatagram = supportsDatagram;
-            sourceConnectionIds.add(connectId);
+            sourceConnectionIds.add(localConnectId);
         } finally {
-            idBuffer.release();
+            localIdBuffer.release();
+            if (remoteIdBuffer != null) {
+                remoteIdBuffer.release();
+            }
         }
     }
 
@@ -1542,7 +1571,8 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                     return;
                 }
 
-                connectAddress = (QuicConnectionAddress) remote;
+                connectLocalAddress = (QuicConnectionAddress) local;
+                connectRemoteAddress = (QuicConnectionAddress) remote;
                 connectPromise = channelPromise;
 
                 // Schedule connect timeout.
@@ -1552,7 +1582,7 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                         ChannelPromise connectPromise = QuicheQuicChannel.this.connectPromise;
                         if (connectPromise != null && !connectPromise.isDone()
                                 && connectPromise.tryFailure(new ConnectTimeoutException(
-                                "connection timed out: " + remote))) {
+                                "connection timed out: " + local + " -> " +  remote))) {
                             close(voidPromise());
                         }
                     }, connectTimeoutMillis, TimeUnit.MILLISECONDS);
