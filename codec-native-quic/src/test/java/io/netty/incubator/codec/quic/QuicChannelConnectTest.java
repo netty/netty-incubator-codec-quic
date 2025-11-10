@@ -1644,6 +1644,54 @@ public class QuicChannelConnectTest extends AbstractQuicTest {
 
     @ParameterizedTest
     @MethodSource("newSslTaskExecutors")
+    public void testIdleTimeout(Executor executor) throws Throwable {
+        ChannelActiveVerifyHandler serverQuicChannelHandler = new ChannelActiveVerifyHandler();
+
+        // Disable token validation
+        Channel server = QuicTestUtils.newServer(executor, InsecureQuicTokenHandler.INSTANCE,
+                serverQuicChannelHandler, new ChannelInboundHandlerAdapter());
+        InetSocketAddress address = (InetSocketAddress) server.localAddress();
+        Channel channel =
+                QuicTestUtils.newClient(QuicTestUtils.newQuicClientBuilder(executor).maxIdleTimeout(1, TimeUnit.SECONDS));
+        try {
+            ChannelActiveVerifyHandler clientQuicChannelHandler = new ChannelActiveVerifyHandler();
+            QuicChannel quicChannel = QuicTestUtils.newQuicChannelBootstrap(channel)
+                    .handler(clientQuicChannelHandler)
+                    .streamHandler(new ChannelInboundHandlerAdapter())
+                    .remoteAddress(address)
+                    .connect()
+                    .get();
+            QuicConnectionAddress localAddress = quicChannel.localAddress();
+            QuicConnectionAddress remoteAddress =  quicChannel.remoteAddress();
+            assertNotNull(localAddress);
+            assertNotNull(remoteAddress);
+
+            QuicheQuicSslEngine quicheQuicSslEngine = (QuicheQuicSslEngine) quicChannel.sslEngine();
+            assertNotNull(quicheQuicSslEngine);
+            assertEquals(QuicTestUtils.PROTOS[0],
+                    // Just do the cast as getApplicationProtocol() only exists in SSLEngine itself since Java9+ and
+                    // we may run on an earlier version
+                    quicheQuicSslEngine.getApplicationProtocol());
+
+            // The channel should get closed after the idle timeout.
+            quicChannel.closeFuture().sync();
+            clientQuicChannelHandler.assertState();
+            serverQuicChannelHandler.assertState();
+
+            assertEquals(serverQuicChannelHandler.localAddress(), remoteAddress);
+            assertEquals(serverQuicChannelHandler.remoteAddress(), localAddress);
+        } finally {
+
+            server.close().sync();
+            // Close the parent Datagram channel as well.
+            channel.close().sync();
+
+            shutdown(executor);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("newSslTaskExecutors")
     public void testSessionTickets(Executor executor) throws Throwable {
         testSessionReuse(executor, true);
     }
