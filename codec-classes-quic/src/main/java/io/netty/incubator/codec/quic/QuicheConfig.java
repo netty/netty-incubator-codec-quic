@@ -26,6 +26,7 @@ final class QuicheConfig {
                  @Nullable Long initialMaxStreamDataBidiLocal, @Nullable Long initialMaxStreamDataBidiRemote,
                  @Nullable Long initialMaxStreamDataUni, @Nullable Long initialMaxStreamsBidi, @Nullable Long initialMaxStreamsUni,
                  @Nullable Long ackDelayExponent, @Nullable Long maxAckDelay, @Nullable Boolean disableActiveMigration, @Nullable Boolean enableHystart,
+                 @Nullable Boolean discoverPmtu,
                  @Nullable QuicCongestionControlAlgorithm congestionControlAlgorithm, @Nullable Integer initialCongestionWindowPackets,
                  @Nullable Integer recvQueueLen, @Nullable Integer sendQueueLen,
                  @Nullable Long activeConnectionIdLimit, byte @Nullable [] statelessResetToken) {
@@ -72,6 +73,9 @@ final class QuicheConfig {
             }
             if (enableHystart != null) {
                 Quiche.quiche_config_enable_hystart(config, enableHystart);
+            }
+            if (discoverPmtu != null) {
+                Quiche.quiche_config_discover_pmtu(config, discoverPmtu);
             }
             if (congestionControlAlgorithm != null) {
                 switch (congestionControlAlgorithm) {
