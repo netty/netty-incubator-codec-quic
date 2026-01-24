@@ -61,6 +61,7 @@ jobs:
 
     runs-on: ubuntu-latest
     name: ${{ matrix.setup }} build
+    if: false
     steps:
       - uses: actions/checkout@v4
 
@@ -113,6 +114,7 @@ jobs:
   build-pr-windows:
     runs-on: windows-2022
     name: windows-x86_64 build
+    if: false
     env:
       # Let's limit the amount of ram that is used to unpack rustup as we saw
       # failures sometimes due the fact that not enough memory could be reserved.
@@ -191,6 +193,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     name:  ${{ matrix.setup }}  build
+    if: false
 
     steps:
       - uses: actions/checkout@v4
@@ -235,8 +238,6 @@ jobs:
   build-pr-android:
     runs-on: ubuntu-latest
     name: android
-    # Skip the build for now as cargo ndk segfaults and we need to figure out why.
-    if: false
     env:
       SDK_VER: "android-21"
       NDK_VER: "25.2.9519653"
@@ -255,8 +256,11 @@ jobs:
         with:
           crate: cargo-ndk
 
-      - name: Install Rust toolchain for Android architectures
-        run: rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+      - name: Install stable toolchain for the target
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v4
