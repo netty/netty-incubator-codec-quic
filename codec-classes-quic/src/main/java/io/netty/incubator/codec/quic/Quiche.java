@@ -279,6 +279,8 @@ final class Quiche {
     static final int QUICHE_ERR_CRYPTO_BUFFER_EXCEEDED =
             QuicheNativeStaticallyReferencedJniMethods.quiche_err_crypto_buffer_exceeded();
 
+    static final int QUICHE_ERR_INVALID_DCID_INITIALIZATION =
+            QuicheNativeStaticallyReferencedJniMethods.quiche_err_invalid_dcid_initialization();
     /**
      * See <a href="https://github.com/cloudflare/quiche/blob/0.6.0/include/quiche.h#L176">
      *     QUICHE_CC_RENO</a>.
@@ -336,6 +338,10 @@ final class Quiche {
                                                 long peerAddr, int peerLen,
                                                 long configAddr, long ssl, boolean isServer);
 
+    static native long quiche_conn_new_with_tls_and_client_dcid(long scidAddr, int scidLen, long odcidAddr,
+                                                                int odcidLen, long localAddr, int localLen,
+                                                                long peerAddr, int peerLen,
+                                                                long configAddr, long ssl);
     /**
      * See <a href="https://github.com/cloudflare/quiche/blob/master/include/quiche.h#L248">
      *     quiche_conn_set_qlog_path</a>.
@@ -890,6 +896,7 @@ final class Quiche {
         ERROR_MAPPINGS.put(QUICHE_ERR_CONGESTION_CONTROL, new QuicTransportErrorHolder(QuicTransportError.PROTOCOL_VIOLATION, "QUICHE_ERR_CONGESTION_CONTROL"));
         ERROR_MAPPINGS.put(QUICHE_ERR_STREAM_STOPPED, new QuicTransportErrorHolder(QuicTransportError.PROTOCOL_VIOLATION, "QUICHE_ERR_STREAM_STOPPED"));
         ERROR_MAPPINGS.put(QUICHE_ERR_OUT_OF_IDENTIFIERS, new QuicTransportErrorHolder(QuicTransportError.PROTOCOL_VIOLATION, "QUICHE_ERR_OUT_OF_IDENTIFIERS"));
+        ERROR_MAPPINGS.put(QUICHE_ERR_INVALID_DCID_INITIALIZATION, new QuicTransportErrorHolder(QuicTransportError.PROTOCOL_VIOLATION, "QUICHE_ERR_INVALID_DCID_INITIALIZATION"));
     }
 
     static Exception convertToException(int result) {
