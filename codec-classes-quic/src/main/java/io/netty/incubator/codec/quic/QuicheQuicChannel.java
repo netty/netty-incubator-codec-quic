@@ -381,17 +381,18 @@ final class QuicheQuicChannel extends AbstractChannel implements QuicChannel {
                 final long remoteIdMemoryAddress;
                 final int remoteIdLength;
                 if (remoteIdBuffer == null) {
-                    remoteIdMemoryAddress = -1;
-                    remoteIdLength = -1;
+                    return Quiche.quiche_conn_new_with_tls(localIdMemoryAddress, localIdLength,
+                            -1, -1,
+                            Quiche.memoryAddressWithPosition(fromSockaddrMemory), fromSockaddrLen,
+                            Quiche.memoryAddressWithPosition(toSockaddrMemory), toSockaddrLen,
+                            configAddr, ssl, false);
                 } else {
-                    remoteIdMemoryAddress = Quiche.readerMemoryAddress(remoteIdBuffer);
-                    remoteIdLength = remoteIdBuffer.readableBytes();
+                    return Quiche.quiche_conn_new_with_tls_and_client_dcid(localIdMemoryAddress, localIdLength,
+                            Quiche.readerMemoryAddress(remoteIdBuffer), remoteIdBuffer.readableBytes(),
+                            Quiche.memoryAddressWithPosition(fromSockaddrMemory), fromSockaddrLen,
+                            Quiche.memoryAddressWithPosition(toSockaddrMemory), toSockaddrLen,
+                            configAddr, ssl);
                 }
-                return Quiche.quiche_conn_new_with_tls(localIdMemoryAddress, localIdLength,
-                        remoteIdMemoryAddress, remoteIdLength,
-                        Quiche.memoryAddressWithPosition(fromSockaddrMemory), fromSockaddrLen,
-                        Quiche.memoryAddressWithPosition(toSockaddrMemory), toSockaddrLen,
-                        configAddr, ssl, false);
             });
             if (connection == null) {
                 failConnectPromiseAndThrow(new ConnectException());
